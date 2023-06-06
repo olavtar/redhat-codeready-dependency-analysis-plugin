@@ -135,88 +135,90 @@ public final class CRDAStep extends Step {
 
             PrintStream logger = getContext().get(TaskListener.class).getLogger();
             logger.println("----- CRDA Analysis Begins -----");
-            String crdaUuid = "";
-            
-            String filePath = step.getFile();
-            if (filePath == null) {
-            	logger.println("Filepath for the manifest file not provided. Please configure the build properly and retry.");
-                return Config.EXIT_FAILED;
-            }
-            
-            
-        	crdaUuid = Utils.getCRDACredential(step.crdaKeyId);
-        	if (crdaUuid == null) {
-        		logger.println("CRDA Key id '" + step.crdaKeyId + "' was not found in the credentials. Please configure the build properly and retry.");
-                return Config.EXIT_FAILED;
-        	}
-            
-            
-            if(crdaUuid.equals("")) {
-            	logger.println("CRDA Key id '" + step.crdaKeyId + "' was not found in the credentials. Please configure the build properly and retry.");
-                return Config.EXIT_FAILED;
-            }
-            
-            String cliVersion = step.getCliVersion();
-            if (cliVersion == null) {
-            	cliVersion = Config.DEFAULT_CLI_VERSION;
-            	logger.println("No CRDA Cli version provided. Taking the default version " + cliVersion);                
-            }
-            else {
-            	if (!Utils.urlExists(Config.CLI_URL.replace("version", cliVersion))) {
-            		cliVersion = Config.DEFAULT_CLI_VERSION;
-            		logger.println("No such version of CRDA CLI exist. Taking default version " + cliVersion);            		
-            	}
-            	else {
-            		cliVersion = cliVersion.replace("v", "");
-            		DefaultArtifactVersion cli = new DefaultArtifactVersion(cliVersion);
-            		DefaultArtifactVersion cliDef = new DefaultArtifactVersion(Config.DEFAULT_CLI_VERSION);
-            		DefaultArtifactVersion cliCompatible = new DefaultArtifactVersion("0.2.0");
-            		if (cli.compareTo(cliCompatible) <0 ) {
-            			logger.println("The cli version provided is older than the compatible version. Will proceed with the default value " + Config.DEFAULT_CLI_VERSION);
-            			cliVersion = Config.DEFAULT_CLI_VERSION;
-            		} else if (cli.compareTo(cliCompatible) >=0 && cli.compareTo(cliDef) <0 ) {
-            			logger.println("Please consider upgrading the cli version to " + Config.DEFAULT_CLI_VERSION);
-            		}
-            		
-            	}
-            }            
-            
-            String baseDir = Utils.doInstall(cliVersion, logger);
-            if (baseDir.equals("Failed"))
-            	return Config.EXIT_FAILED;
-            logger.println("Contribution towards anonymous usage stats is set to " + step.getConsentTelemetry());
-            String cmd = Config.CLI_CMD.replace("filepath", filePath);
-            cmd = baseDir + cmd;
-            logger.println("Analysis Begins");
-            Map<String, String> envs = new HashMap<>();
-            envs.put("CRDA_KEY", crdaUuid);
-            envs.put("PATH", jenkinsPath);            
-            envs.put("CONSENT_TELEMETRY", String.valueOf(step.getConsentTelemetry()));
-            String results = Utils.doExecute(cmd, logger, envs);
-            
-            
-            if (results.equals("") || results.equals("0") || ! Utils.isJSONValid(results)) {
-            	logger.println("Analysis returned no results.");
-            	return Config.EXIT_FAILED;
-            }
-            
-            logger.println("....Analysis Summary....");
-            JSONObject res = new JSONObject(results);
-            
-            Iterator<String> keys = res.keys();
-	        String key;
-	        
-	        while(keys.hasNext()) {
-	            key = keys.next();
-	            logger.println("\t" + key.replace("_", " ") + " : " + res.get(key));
-	        }
-	        
-	        logger.println("Click on the CRDA Stack Report icon to view the detailed report");
-            
-            Run run = getContext().get(Run.class);
-            run.addAction(new CRDAAction(crdaUuid, res));
-            logger.println("----- CRDA Analysis Ends -----");
-            return res.getInt("total_vulnerabilities") == 0 ? Config.EXIT_SUCCESS : Config.EXIT_VULNERABLE;
+            logger.println("----- CRDA Analysis Begins CRDAStep -----");
+//            String crdaUuid = "";
+//
+//            String filePath = step.getFile();
+//            if (filePath == null) {
+//            	logger.println("Filepath for the manifest file not provided. Please configure the build properly and retry.");
+//                return Config.EXIT_FAILED;
+//            }
+//
+//
+//        	crdaUuid = Utils.getCRDACredential(step.crdaKeyId);
+//        	if (crdaUuid == null) {
+//        		logger.println("CRDA Key id '" + step.crdaKeyId + "' was not found in the credentials. Please configure the build properly and retry.");
+//                return Config.EXIT_FAILED;
+//        	}
+//
+//
+//            if(crdaUuid.equals("")) {
+//            	logger.println("CRDA Key id '" + step.crdaKeyId + "' was not found in the credentials. Please configure the build properly and retry.");
+//                return Config.EXIT_FAILED;
+//            }
+//
+//            String cliVersion = step.getCliVersion();
+//            if (cliVersion == null) {
+//            	cliVersion = Config.DEFAULT_CLI_VERSION;
+//            	logger.println("No CRDA Cli version provided. Taking the default version " + cliVersion);
+//            }
+//            else {
+//            	if (!Utils.urlExists(Config.CLI_URL.replace("version", cliVersion))) {
+//            		cliVersion = Config.DEFAULT_CLI_VERSION;
+//            		logger.println("No such version of CRDA CLI exist. Taking default version " + cliVersion);
+//            	}
+//            	else {
+//            		cliVersion = cliVersion.replace("v", "");
+//            		DefaultArtifactVersion cli = new DefaultArtifactVersion(cliVersion);
+//            		DefaultArtifactVersion cliDef = new DefaultArtifactVersion(Config.DEFAULT_CLI_VERSION);
+//            		DefaultArtifactVersion cliCompatible = new DefaultArtifactVersion("0.2.0");
+//            		if (cli.compareTo(cliCompatible) <0 ) {
+//            			logger.println("The cli version provided is older than the compatible version. Will proceed with the default value " + Config.DEFAULT_CLI_VERSION);
+//            			cliVersion = Config.DEFAULT_CLI_VERSION;
+//            		} else if (cli.compareTo(cliCompatible) >=0 && cli.compareTo(cliDef) <0 ) {
+//            			logger.println("Please consider upgrading the cli version to " + Config.DEFAULT_CLI_VERSION);
+//            		}
+//
+//            	}
+//            }
+//
+//            String baseDir = Utils.doInstall(cliVersion, logger);
+//            if (baseDir.equals("Failed"))
+//            	return Config.EXIT_FAILED;
+//            logger.println("Contribution towards anonymous usage stats is set to " + step.getConsentTelemetry());
+//            String cmd = Config.CLI_CMD.replace("filepath", filePath);
+//            cmd = baseDir + cmd;
+//            logger.println("Analysis Begins");
+//            Map<String, String> envs = new HashMap<>();
+//            envs.put("CRDA_KEY", crdaUuid);
+//            envs.put("PATH", jenkinsPath);
+//            envs.put("CONSENT_TELEMETRY", String.valueOf(step.getConsentTelemetry()));
+//            String results = Utils.doExecute(cmd, logger, envs);
+//
+//
+//            if (results.equals("") || results.equals("0") || ! Utils.isJSONValid(results)) {
+//            	logger.println("Analysis returned no results.");
+//            	return Config.EXIT_FAILED;
+//            }
+//
+//            logger.println("....Analysis Summary....");
+//            JSONObject res = new JSONObject(results);
+//
+//            Iterator<String> keys = res.keys();
+//	        String key;
+//
+//	        while(keys.hasNext()) {
+//	            key = keys.next();
+//	            logger.println("\t" + key.replace("_", " ") + " : " + res.get(key));
+//	        }
+//
+//	        logger.println("Click on the CRDA Stack Report icon to view the detailed report");
+//
+//            Run run = getContext().get(Run.class);
+//            run.addAction(new CRDAAction(crdaUuid, res));
+//            logger.println("----- CRDA Analysis Ends -----");
+//            return res.getInt("total_vulnerabilities") == 0 ? Config.EXIT_SUCCESS : Config.EXIT_VULNERABLE;
+           return Config.EXIT_SUCCESS;
         }     
 
         private static final long serialVersionUID = 1L;
@@ -260,7 +262,7 @@ public final class CRDAStep extends Step {
 
         @Override
         public String getDisplayName() {
-            return "Invoke Red Hat Codeready Dependency Analysis (CRDA)";
+            return "Test Invoke Red Hat Codeready Dependency Analysis (CRDA)";
         }
 
         @Override

@@ -16,15 +16,23 @@
 
 package redhat.jenkins.plugins.crda.task;
 
+import java.io.BufferedWriter;
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.HashMap;
-import java.util.Iterator;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 
 import javax.servlet.ServletException;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.Response;
 
-import org.json.JSONObject;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.redhat.ecosystemappeng.crda.api.AnalysisReport;
+import org.jboss.resteasy.reactive.ClientWebApplicationException;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
@@ -47,11 +55,16 @@ import hudson.tasks.Builder;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import jenkins.tasks.SimpleBuildStep;
-import redhat.jenkins.plugins.crda.action.CRDAAction;
+import redhat.jenkins.plugins.crda.client.BackendOptions;
+import redhat.jenkins.plugins.crda.client.DepAnalysisDTO;
+import redhat.jenkins.plugins.crda.client.DependencyAnalysisService;
+import redhat.jenkins.plugins.crda.service.PackageManagerService;
 import redhat.jenkins.plugins.crda.utils.Config;
 import redhat.jenkins.plugins.crda.utils.Utils;
 import redhat.jenkins.plugins.crda.credentials.CRDAKey;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class CRDABuilder extends Builder implements SimpleBuildStep {
 
@@ -59,6 +72,9 @@ public class CRDABuilder extends Builder implements SimpleBuildStep {
     private String crdaKeyId;
     private String cliVersion;
     private boolean consentTelemetry = false;
+
+    private final ObjectMapper mapper = new ObjectMapper();
+
 
     @DataBoundConstructor
     public CRDABuilder(String file, String crdaKeyId, String cliVersion, boolean consentTelemetry) {
@@ -108,58 +124,84 @@ public class CRDABuilder extends Builder implements SimpleBuildStep {
     public void perform(Run<?, ?> run, FilePath workspace, EnvVars env, Launcher launcher, TaskListener listener) throws InterruptedException, IOException {
     	PrintStream logger = listener.getLogger();
     	logger.println("----- CRDA Analysis Begins -----");
-    	String jenkinsPath = env.get("PATH");
-    	String crdaUuid = Utils.getCRDACredential(this.getCrdaKeyId());
-        String cliVersion = this.getCliVersion();
-        if (cliVersion == null) {
-        	cliVersion = Config.DEFAULT_CLI_VERSION;
-        	logger.println("No CRDA Cli version provided. Taking the default version " + cliVersion);                
+        logger.println("----- CRDA Analysis New Backend CRDABuilder -----");
+
+        try {
+            BackendOptions options = new BackendOptions();
+            options.setVerbose(true);
+            options.setSnykToken("--snyk-token");
+
+            Client client = ClientBuilder.newClient();
+            WebTarget target = client.target("http://crda-backend-crda.apps.sssc-cl01.appeng.rhecoeng.com/api/v3/dependency-analysis");
+            DependencyAnalysisService dependencyAnalysisService = (DependencyAnalysisService)target;
+
+            PackageManagerService svc = redhat.jenkins.plugins.crda.service.PackageManagerServiceProvider.get(new File(this.getFile()));
+            Response response = dependencyAnalysisService.createReport(svc.getName(), options.isVerbose(), options.getSnykToken(), svc.generateSbom(new File(this.getFile()).toPath()));
+            DepAnalysisDTO dto = processResponse(response);
+            processReport(dto.getReport(), listener);
+            saveHtmlReport(dto.getHtml());
+        } catch (IOException e) {
+            System.out.println("ERROR: Unable to read file: " + this.getFile() + ". " + e.getMessage());
+        } catch (IllegalArgumentException e) {
+            System.out.println("ERROR: " + e.getMessage());
+        } catch (ClientWebApplicationException e) {
+            System.out.println("ERROR: Unable to process request in the backend. " + e.getMessage());
         }
-        if (cliVersion.startsWith("v")) {
-        	cliVersion = cliVersion.replace("v", "");
-        	DefaultArtifactVersion cli = new DefaultArtifactVersion(cliVersion);
-    		DefaultArtifactVersion cliDef = new DefaultArtifactVersion(Config.DEFAULT_CLI_VERSION);
-    		
-    		if (cli.compareTo(cliDef) <0 ) {
-    			logger.println("Please consider upgrading the cli version to " + Config.DEFAULT_CLI_VERSION);
-    		}
-        }
-        
-        String baseDir = Utils.doInstall(cliVersion, logger);
-        if (baseDir.equals("Failed")) {
-        	logger.println("Error during installation process");
-        	return;
-        }
-        
-        String cmd = Config.CLI_CMD.replace("filepath", this.getFile());
-        cmd = baseDir + cmd;
-        logger.println("Contribution towards anonymous usage stats is set to " + this.getConsentTelemetry());
-        logger.println("Analysis Begins");        
-        Map<String, String> envs = new HashMap<>();
-        envs.put("PATH", jenkinsPath);
-        envs.put("CRDA_KEY", crdaUuid);
-        envs.put("CONSENT_TELEMETRY", String.valueOf(this.getConsentTelemetry()));
-        String results = Utils.doExecute(cmd, logger, envs);        
-        
-        if (results.equals("") || results.equals("0") || ! Utils.isJSONValid(results)) {
-        	logger.println("Analysis returned no results.");
-        	return;
-        }
-        else {
-        
-        	logger.println("....Analysis Summary....");
-        	JSONObject res = new JSONObject(results);
-	        Iterator<String> keys = res.keys();
-	        String key;
-	        while(keys.hasNext()) {
-	            key = keys.next();
-	            logger.println("\t" + key.replace("_", " ") + " : " + res.get(key));
-	        }
-	        
-	        logger.println("Click on the CRDA Stack Report icon to view the detailed report");
-	        logger.println("----- CRDA Analysis Ends -----");
-	        run.addAction(new CRDAAction(crdaUuid, res));
-        }
+
+
+
+//    	String jenkinsPath = env.get("PATH");
+//    	String crdaUuid = Utils.getCRDACredential(this.getCrdaKeyId());
+//        String cliVersion = this.getCliVersion();
+//        if (cliVersion == null) {
+//        	cliVersion = Config.DEFAULT_CLI_VERSION;
+//        	logger.println("No CRDA Cli version provided. Taking the default version " + cliVersion);
+//        }
+//        if (cliVersion.startsWith("v")) {
+//        	cliVersion = cliVersion.replace("v", "");
+//        	DefaultArtifactVersion cli = new DefaultArtifactVersion(cliVersion);
+//    		DefaultArtifactVersion cliDef = new DefaultArtifactVersion(Config.DEFAULT_CLI_VERSION);
+//
+//    		if (cli.compareTo(cliDef) <0 ) {
+//    			logger.println("Please consider upgrading the cli version to " + Config.DEFAULT_CLI_VERSION);
+//    		}
+//        }
+//
+//        String baseDir = Utils.doInstall(cliVersion, logger);
+//        if (baseDir.equals("Failed")) {
+//        	logger.println("Error during installation process");
+//        	return;
+//        }
+//
+//        String cmd = Config.CLI_CMD.replace("filepath", this.getFile());
+//        cmd = baseDir + cmd;
+//        logger.println("Contribution towards anonymous usage stats is set to " + this.getConsentTelemetry());
+//        logger.println("Analysis Begins");
+//        Map<String, String> envs = new HashMap<>();
+//        envs.put("PATH", jenkinsPath);
+//        envs.put("CRDA_KEY", crdaUuid);
+//        envs.put("CONSENT_TELEMETRY", String.valueOf(this.getConsentTelemetry()));
+//        String results = Utils.doExecute(cmd, logger, envs);
+//
+//        if (results.equals("") || results.equals("0") || ! Utils.isJSONValid(results)) {
+//        	logger.println("Analysis returned no results.");
+//        	return;
+//        }
+//        else {
+//
+//        	logger.println("....Analysis Summary....");
+//        	JSONObject res = new JSONObject(results);
+//	        Iterator<String> keys = res.keys();
+//	        String key;
+//	        while(keys.hasNext()) {
+//	            key = keys.next();
+//	            logger.println("\t" + key.replace("_", " ") + " : " + res.get(key));
+//	        }
+//
+//	        logger.println("Click on the CRDA Stack Report icon to view the detailed report");
+//	        logger.println("----- CRDA Analysis Ends -----");
+//	        run.addAction(new CRDAAction(crdaUuid, res));
+//        }
     }
 
     @Extension
@@ -231,6 +273,76 @@ public class CRDABuilder extends Builder implements SimpleBuildStep {
         @Override
         public String getDisplayName() {
             return Messages.CRDABuilder_DescriptorImpl_DisplayName();
+        }
+    }
+
+    private DepAnalysisDTO processResponse(Response response) {
+        Map<String, String> params = response.getMediaType().getParameters();
+        String boundary = params.get("boundary");
+        if(boundary == null) {
+            System.out.println("Missing response boundary");
+            return null;
+        }
+        String body = response.readEntity(String.class);
+        String[] lines = body.split("\n");
+        int cursor = 0;
+        while(!lines[cursor].contains(boundary)) {
+            cursor++;
+        }
+        cursor++;
+        while(lines[cursor].startsWith("Content-") || lines[cursor].isBlank()) {
+            cursor++;
+        }
+        StringBuffer json = new StringBuffer();
+        while(!lines[cursor].contains(boundary)) {
+            json.append(lines[cursor++]);
+        }
+        while(!lines[cursor].contains(boundary)) {
+            cursor++;
+        }
+        cursor++;
+        while(lines[cursor].startsWith("Content-") || lines[cursor].isBlank()) {
+            cursor++;
+        }
+        StringBuffer html = new StringBuffer();
+        while(!lines[cursor].contains(boundary)) {
+            html.append(lines[cursor++]);
+        }
+        try {
+            return new DepAnalysisDTO(mapper.readValue(json.toString(), AnalysisReport.class), html.toString());
+        } catch (JsonProcessingException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private void processReport(AnalysisReport report, TaskListener listener) {
+        PrintStream logger = listener.getLogger();
+        logger.println("Summary");
+        logger.println("  Dependencies");
+        logger.println("    Scanned dependencies:    " + report.summary().dependencies().scanned());
+        logger.println("    Transitive dependencies: " + report.summary().dependencies().transitive());
+        logger.println("  Vulnerabilities");
+        logger.println("    Total: " + report.summary().vulnerabilities().total());
+        logger.println("    Direct: " + report.summary().vulnerabilities().direct());
+        logger.println("    Critical: " + report.summary().vulnerabilities().critical());
+        logger.println("    High: " + report.summary().vulnerabilities().high());
+        logger.println("    Medium: " + report.summary().vulnerabilities().medium());
+        logger.println("    Low: " + report.summary().vulnerabilities().low());
+        logger.println("");
+    }
+
+    private void saveHtmlReport(String html) {
+        try {
+            Path temp = Files.createTempFile("dependency-analysis-report", ".html");
+            BufferedWriter writer = Files.newBufferedWriter(temp);
+            writer.append(html);
+            writer.close();
+            System.out.println("You can find the detailed HTML report in: " + temp);
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
         }
     }
 

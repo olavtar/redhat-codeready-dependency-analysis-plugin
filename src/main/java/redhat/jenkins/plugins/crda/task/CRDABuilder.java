@@ -16,55 +16,51 @@
 
 package redhat.jenkins.plugins.crda.task;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Map;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.redhat.ecosystemappeng.crda.api.AnalysisReport;
+import hudson.EnvVars;
+import hudson.Extension;
+import hudson.FilePath;
+import hudson.Launcher;
+import hudson.model.AbstractProject;
+import hudson.model.Item;
+import hudson.model.Run;
+import hudson.model.TaskListener;
+import hudson.security.ACL;
+import hudson.tasks.BuildStepDescriptor;
+import hudson.tasks.Builder;
+import hudson.util.FormValidation;
+import hudson.util.ListBoxModel;
+//import jakarta.ws.rs.client.Client;
+//import jakarta.ws.rs.client.ClientBuilder;
+//import jakarta.ws.rs.client.WebTarget;
+import jenkins.model.Jenkins;
+import jenkins.tasks.SimpleBuildStep;
+import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
+import org.kohsuke.stapler.AncestorInPath;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
+import org.kohsuke.stapler.QueryParameter;
+import redhat.jenkins.plugins.crda.client.BackendOptions;
+import redhat.jenkins.plugins.crda.client.DepAnalysisDTO;
+import redhat.jenkins.plugins.crda.client.DependencyAnalysisService;
+import redhat.jenkins.plugins.crda.credentials.CRDAKey;
+import redhat.jenkins.plugins.crda.service.PackageManagerService;
+import redhat.jenkins.plugins.crda.utils.Config;
+import redhat.jenkins.plugins.crda.utils.Utils;
 
 import javax.servlet.ServletException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.Response;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.redhat.ecosystemappeng.crda.api.AnalysisReport;
-import org.jboss.resteasy.reactive.ClientWebApplicationException;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.DataBoundSetter;
-import org.kohsuke.stapler.QueryParameter;
-
-import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
-import com.cloudbees.plugins.credentials.CredentialsProvider;
-import org.kohsuke.stapler.AncestorInPath;
-import hudson.model.Item;
-import jenkins.model.Jenkins;
-import hudson.security.ACL;
-import hudson.EnvVars;
-import hudson.Extension;
-import hudson.FilePath;
-import hudson.Launcher;
-import hudson.model.AbstractProject;
-import hudson.model.Run;
-import hudson.model.TaskListener;
-import hudson.tasks.BuildStepDescriptor;
-import hudson.tasks.Builder;
-import hudson.util.FormValidation;
-import hudson.util.ListBoxModel;
-import jenkins.tasks.SimpleBuildStep;
-import redhat.jenkins.plugins.crda.client.BackendOptions;
-import redhat.jenkins.plugins.crda.client.DepAnalysisDTO;
-import redhat.jenkins.plugins.crda.client.DependencyAnalysisService;
-import redhat.jenkins.plugins.crda.service.PackageManagerService;
-import redhat.jenkins.plugins.crda.utils.Config;
-import redhat.jenkins.plugins.crda.utils.Utils;
-import redhat.jenkins.plugins.crda.credentials.CRDAKey;
-import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.util.Map;
 
 public class CRDABuilder extends Builder implements SimpleBuildStep {
 
@@ -72,9 +68,6 @@ public class CRDABuilder extends Builder implements SimpleBuildStep {
     private String crdaKeyId;
     private String cliVersion;
     private boolean consentTelemetry = false;
-
-    private final ObjectMapper mapper = new ObjectMapper();
-
 
     @DataBoundConstructor
     public CRDABuilder(String file, String crdaKeyId, String cliVersion, boolean consentTelemetry) {
@@ -121,34 +114,27 @@ public class CRDABuilder extends Builder implements SimpleBuildStep {
     } 
 
     @Override
-    public void perform(Run<?, ?> run, FilePath workspace, EnvVars env, Launcher launcher, TaskListener listener) throws InterruptedException, IOException {
+    public void perform(Run<?, ?> run, FilePath workspace, EnvVars env, Launcher launcher, TaskListener listener) throws IOException {
     	PrintStream logger = listener.getLogger();
     	logger.println("----- CRDA Analysis Begins -----");
         logger.println("----- CRDA Analysis New Backend CRDABuilder -----");
 
-        try {
-            BackendOptions options = new BackendOptions();
-            options.setVerbose(true);
-            options.setSnykToken("--snyk-token");
-
-            Client client = ClientBuilder.newClient();
-            WebTarget target = client.target("http://crda-backend-crda.apps.sssc-cl01.appeng.rhecoeng.com/api/v3/dependency-analysis");
-            DependencyAnalysisService dependencyAnalysisService = (DependencyAnalysisService)target;
-
-            PackageManagerService svc = redhat.jenkins.plugins.crda.service.PackageManagerServiceProvider.get(new File(this.getFile()));
-            Response response = dependencyAnalysisService.createReport(svc.getName(), options.isVerbose(), options.getSnykToken(), svc.generateSbom(new File(this.getFile()).toPath()));
-            DepAnalysisDTO dto = processResponse(response);
-            processReport(dto.getReport(), listener);
-            saveHtmlReport(dto.getHtml());
-        } catch (IOException e) {
-            System.out.println("ERROR: Unable to read file: " + this.getFile() + ". " + e.getMessage());
-        } catch (IllegalArgumentException e) {
-            System.out.println("ERROR: " + e.getMessage());
-        } catch (ClientWebApplicationException e) {
-            System.out.println("ERROR: Unable to process request in the backend. " + e.getMessage());
-        }
-
-
+        BackendOptions options = new BackendOptions();
+        options.setVerbose(true);
+        options.setSnykToken("--snyk-token");
+        logger.println("----- CRDA options ");
+        Client client = ClientBuilder.newClient();
+        logger.println("----- CRDA client ");
+        WebTarget target = client.target("http://crda-backend-crda.apps.sssc-cl01.appeng.rhecoeng.com/api/v3/dependency-analysis");
+        DependencyAnalysisService dependencyAnalysisService = (DependencyAnalysisService)target;
+        logger.println("----- CRDA dependencyAnalysisService ");
+        PackageManagerService svc = redhat.jenkins.plugins.crda.service.PackageManagerServiceProvider.get(new File(this.getFile()));
+        logger.println("----- CRDA svc: " + svc.getName());
+        Response response = dependencyAnalysisService.createReport(svc.getName(), options.isVerbose(), options.getSnykToken(), svc.generateSbom(new File(this.getFile()).toPath()));
+        logger.println("----- CRDA response ");
+        DepAnalysisDTO dto = processResponse(response);
+        processReport(dto.getReport(), listener);
+     //   saveHtmlReport(dto.getHtml());
 
 //    	String jenkinsPath = env.get("PATH");
 //    	String crdaUuid = Utils.getCRDACredential(this.getCrdaKeyId());
@@ -278,6 +264,7 @@ public class CRDABuilder extends Builder implements SimpleBuildStep {
 
     private DepAnalysisDTO processResponse(Response response) {
         Map<String, String> params = response.getMediaType().getParameters();
+        ObjectMapper mapper = new ObjectMapper();
         String boundary = params.get("boundary");
         if(boundary == null) {
             System.out.println("Missing response boundary");
@@ -333,17 +320,17 @@ public class CRDABuilder extends Builder implements SimpleBuildStep {
         logger.println("");
     }
 
-    private void saveHtmlReport(String html) {
-        try {
-            Path temp = Files.createTempFile("dependency-analysis-report", ".html");
-            BufferedWriter writer = Files.newBufferedWriter(temp);
-            writer.append(html);
-            writer.close();
-            System.out.println("You can find the detailed HTML report in: " + temp);
-        } catch (IOException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-    }
+//    private void saveHtmlReport(String html) {
+//        try {
+//            Path temp = Files.createTempFile("dependency-analysis-report", ".html");
+//            BufferedWriter writer = Files.newBufferedWriter(temp);
+//            writer.append(html);
+//            writer.close();
+//            System.out.println("You can find the detailed HTML report in: " + temp);
+//        } catch (IOException e) {
+//            // TODO Auto-generated catch block
+//            e.printStackTrace();
+//        }
+//    }
 
 }

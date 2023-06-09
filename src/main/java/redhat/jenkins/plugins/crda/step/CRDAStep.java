@@ -136,52 +136,52 @@ public final class CRDAStep extends Step {
             PrintStream logger = getContext().get(TaskListener.class).getLogger();
             logger.println("----- CRDA Analysis Begins -----");
             logger.println("----- CRDA Analysis Begins CRDAStep -----");
-//            String crdaUuid = "";
-//
-//            String filePath = step.getFile();
-//            if (filePath == null) {
-//            	logger.println("Filepath for the manifest file not provided. Please configure the build properly and retry.");
-//                return Config.EXIT_FAILED;
-//            }
-//
-//
-//        	crdaUuid = Utils.getCRDACredential(step.crdaKeyId);
-//        	if (crdaUuid == null) {
-//        		logger.println("CRDA Key id '" + step.crdaKeyId + "' was not found in the credentials. Please configure the build properly and retry.");
-//                return Config.EXIT_FAILED;
-//        	}
-//
-//
-//            if(crdaUuid.equals("")) {
-//            	logger.println("CRDA Key id '" + step.crdaKeyId + "' was not found in the credentials. Please configure the build properly and retry.");
-//                return Config.EXIT_FAILED;
-//            }
-//
-//            String cliVersion = step.getCliVersion();
-//            if (cliVersion == null) {
-//            	cliVersion = Config.DEFAULT_CLI_VERSION;
-//            	logger.println("No CRDA Cli version provided. Taking the default version " + cliVersion);
-//            }
-//            else {
-//            	if (!Utils.urlExists(Config.CLI_URL.replace("version", cliVersion))) {
-//            		cliVersion = Config.DEFAULT_CLI_VERSION;
-//            		logger.println("No such version of CRDA CLI exist. Taking default version " + cliVersion);
-//            	}
-//            	else {
-//            		cliVersion = cliVersion.replace("v", "");
-//            		DefaultArtifactVersion cli = new DefaultArtifactVersion(cliVersion);
-//            		DefaultArtifactVersion cliDef = new DefaultArtifactVersion(Config.DEFAULT_CLI_VERSION);
-//            		DefaultArtifactVersion cliCompatible = new DefaultArtifactVersion("0.2.0");
-//            		if (cli.compareTo(cliCompatible) <0 ) {
-//            			logger.println("The cli version provided is older than the compatible version. Will proceed with the default value " + Config.DEFAULT_CLI_VERSION);
-//            			cliVersion = Config.DEFAULT_CLI_VERSION;
-//            		} else if (cli.compareTo(cliCompatible) >=0 && cli.compareTo(cliDef) <0 ) {
-//            			logger.println("Please consider upgrading the cli version to " + Config.DEFAULT_CLI_VERSION);
-//            		}
-//
-//            	}
-//            }
-//
+            String crdaUuid = "";
+
+            String filePath = step.getFile();
+            if (filePath == null) {
+            	logger.println("Filepath for the manifest file not provided. Please configure the build properly and retry.");
+                return Config.EXIT_FAILED;
+            }
+
+
+        	crdaUuid = Utils.getCRDACredential(step.crdaKeyId);
+        	if (crdaUuid == null) {
+        		logger.println("CRDA Key id '" + step.crdaKeyId + "' was not found in the credentials. Please configure the build properly and retry.");
+                return Config.EXIT_FAILED;
+        	}
+
+
+            if(crdaUuid.equals("")) {
+            	logger.println("CRDA Key id '" + step.crdaKeyId + "' was not found in the credentials. Please configure the build properly and retry.");
+                return Config.EXIT_FAILED;
+            }
+
+            String cliVersion = step.getCliVersion();
+            if (cliVersion == null) {
+            	cliVersion = Config.DEFAULT_CLI_VERSION;
+            	logger.println("No CRDA Cli version provided. Taking the default version " + cliVersion);
+            }
+            else {
+            	if (!Utils.urlExists(Config.CLI_URL.replace("version", cliVersion))) {
+            		cliVersion = Config.DEFAULT_CLI_VERSION;
+            		logger.println("No such version of CRDA CLI exist. Taking default version " + cliVersion);
+            	}
+            	else {
+            		cliVersion = cliVersion.replace("v", "");
+            		DefaultArtifactVersion cli = new DefaultArtifactVersion(cliVersion);
+            		DefaultArtifactVersion cliDef = new DefaultArtifactVersion(Config.DEFAULT_CLI_VERSION);
+            		DefaultArtifactVersion cliCompatible = new DefaultArtifactVersion("0.2.0");
+            		if (cli.compareTo(cliCompatible) <0 ) {
+            			logger.println("The cli version provided is older than the compatible version. Will proceed with the default value " + Config.DEFAULT_CLI_VERSION);
+            			cliVersion = Config.DEFAULT_CLI_VERSION;
+            		} else if (cli.compareTo(cliCompatible) >=0 && cli.compareTo(cliDef) <0 ) {
+            			logger.println("Please consider upgrading the cli version to " + Config.DEFAULT_CLI_VERSION);
+            		}
+
+            	}
+            }
+
 //            String baseDir = Utils.doInstall(cliVersion, logger);
 //            if (baseDir.equals("Failed"))
 //            	return Config.EXIT_FAILED;

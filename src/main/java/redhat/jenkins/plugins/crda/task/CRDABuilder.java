@@ -34,9 +34,10 @@ import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
-//import jakarta.ws.rs.client.Client;
-//import jakarta.ws.rs.client.ClientBuilder;
-//import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.Response;
 import jenkins.model.Jenkins;
 import jenkins.tasks.SimpleBuildStep;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
@@ -53,14 +54,13 @@ import redhat.jenkins.plugins.crda.utils.Config;
 import redhat.jenkins.plugins.crda.utils.Utils;
 
 import javax.servlet.ServletException;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.Response;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Map;
+
+import org.jenkinsci.Symbol;
+
 
 public class CRDABuilder extends Builder implements SimpleBuildStep {
 

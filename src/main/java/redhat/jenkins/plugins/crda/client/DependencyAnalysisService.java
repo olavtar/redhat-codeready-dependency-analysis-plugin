@@ -1,10 +1,9 @@
 package redhat.jenkins.plugins.crda.client;
 
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import jdk.jfr.Registered;
-
-import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 
 @Path("/")
 @Registered

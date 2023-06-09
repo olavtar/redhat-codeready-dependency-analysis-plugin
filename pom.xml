@@ -27,12 +27,11 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <!-- Pick up common dependencies for the selected LTS line: https://github.com/jenkinsci/bom#usage -->
                 <groupId>io.jenkins.tools.bom</groupId>
-                <artifactId>bom-2.375.x</artifactId>
-                <version>2143.ve4c3c9ec790a</version>
-                <scope>import</scope>
+                <artifactId>bom-2.387.x</artifactId>
+                <version>2133.v2e6c00fe4d61</version>
                 <type>pom</type>
+                <scope>import</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -191,14 +190,20 @@
             <artifactId>resteasy-jaxb-provider</artifactId>
             <version>6.2.4.Final</version>
         </dependency>
+        <dependency>
+            <groupId>jakarta.ws.rs</groupId>
+            <artifactId>jakarta.ws.rs-api</artifactId>
+            <version>3.1.0</version>
+        </dependency>
 
     </dependencies>
 
     <build>
         <plugins>
             <plugin>
-                <artifactId>maven-compiler-plugin</artifactId>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.8.1</version>
                 <configuration>
                     <compilerArgs>
                         <arg>-Xlint:all,-options,-path</arg>
@@ -219,9 +224,9 @@
             <plugin>
                 <groupId>org.jenkins-ci.tools</groupId>
                 <artifactId>maven-hpi-plugin</artifactId>
+                <version>3.5</version>
                 <extensions>true</extensions>
                 <configuration>
-                    <compatibleSinceVersion>2.0.0</compatibleSinceVersion>
                     <minimumJavaVersion>1.8</minimumJavaVersion>
                 </configuration>
             </plugin>

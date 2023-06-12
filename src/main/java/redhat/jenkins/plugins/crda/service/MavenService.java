@@ -26,7 +26,6 @@ public class MavenService implements PackageManagerService {
         validateFile(path);
         Path filtered = filterIgnoredDependencies(path);
         Process process = Runtime.getRuntime().exec("mvn org.cyclonedx:cyclonedx-maven-plugin:2.7.6:makeBom -DincludeTestScope=false -DoutputFormat=json -DoutputName=project-bom -f " + filtered);
-        
         try {
             int exitCode = process.waitFor();
             if(exitCode != 0) {

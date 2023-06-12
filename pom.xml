@@ -28,8 +28,8 @@
         <dependencies>
             <dependency>
                 <groupId>io.jenkins.tools.bom</groupId>
-                <artifactId>bom-2.387.x</artifactId>
-                <version>2133.v2e6c00fe4d61</version>
+                <artifactId>bom-2.401.x</artifactId>
+                <version>2163.v2d916d90c305</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -140,7 +140,7 @@
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-job</artifactId>
         </dependency>
-         <dependency>
+        <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-step-api</artifactId>
         </dependency>
@@ -168,34 +168,18 @@
         <dependency>
             <groupId>io.quarkus.resteasy.reactive</groupId>
             <artifactId>resteasy-reactive-common</artifactId>
-            <version>3.1.0.Final</version>
+            <version>3.0.2.Final</version>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-rest-client-reactive-jackson</artifactId>
+            <version>3.0.2.Final</version>
         </dependency>
         <dependency>
             <groupId>com.redhat.ecosystemappeng</groupId>
             <artifactId>crda-api</artifactId>
             <version>1.0.0-SNAPSHOT</version>
         </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>2.14.2</version>
-        </dependency>
-        <dependency>
-            <groupId>org.jboss.resteasy</groupId>
-            <artifactId>resteasy-client</artifactId>
-            <version>6.2.4.Final</version>
-        </dependency>
-        <dependency>
-            <groupId>org.jboss.resteasy</groupId>
-            <artifactId>resteasy-jaxb-provider</artifactId>
-            <version>6.2.4.Final</version>
-        </dependency>
-        <dependency>
-            <groupId>jakarta.ws.rs</groupId>
-            <artifactId>jakarta.ws.rs-api</artifactId>
-            <version>3.1.0</version>
-        </dependency>
-
     </dependencies>
 
     <build>

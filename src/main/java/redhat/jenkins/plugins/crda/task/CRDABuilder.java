@@ -34,9 +34,8 @@ import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
-import jakarta.ws.rs.client.Client;
-import jakarta.ws.rs.client.ClientBuilder;
-import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.client.*;
+import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jenkins.model.Jenkins;
 import jenkins.tasks.SimpleBuildStep;
@@ -47,7 +46,6 @@ import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import redhat.jenkins.plugins.crda.client.BackendOptions;
 import redhat.jenkins.plugins.crda.client.DepAnalysisDTO;
-import redhat.jenkins.plugins.crda.client.DependencyAnalysisService;
 import redhat.jenkins.plugins.crda.credentials.CRDAKey;
 import redhat.jenkins.plugins.crda.service.PackageManagerService;
 import redhat.jenkins.plugins.crda.utils.Config;
@@ -58,8 +56,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Map;
-
-import org.jenkinsci.Symbol;
 
 
 public class CRDABuilder extends Builder implements SimpleBuildStep {
@@ -85,7 +81,7 @@ public class CRDABuilder extends Builder implements SimpleBuildStep {
     public void setFile(String file) {
         this.file = file;
     }
-    
+
     public String getCliVersion() {
         return cliVersion;
     }
@@ -103,7 +99,7 @@ public class CRDABuilder extends Builder implements SimpleBuildStep {
     public void setCrdaKeyId(String crdaKeyId) {
         this.crdaKeyId = crdaKeyId;
     }
-    
+
     public boolean getConsentTelemetry() {
         return consentTelemetry;
     }
@@ -111,30 +107,40 @@ public class CRDABuilder extends Builder implements SimpleBuildStep {
     @DataBoundSetter
     public void setConsentTelemetry(boolean consentTelemetry) {
         this.consentTelemetry = consentTelemetry;
-    } 
+    }
 
     @Override
     public void perform(Run<?, ?> run, FilePath workspace, EnvVars env, Launcher launcher, TaskListener listener) throws IOException {
-    	PrintStream logger = listener.getLogger();
-    	logger.println("----- CRDA Analysis Begins -----");
+        PrintStream logger = listener.getLogger();
+        logger.println("----- CRDA Analysis Begins -----");
         logger.println("----- CRDA Analysis New Backend CRDABuilder -----");
 
         BackendOptions options = new BackendOptions();
         options.setVerbose(true);
         options.setSnykToken("--snyk-token");
         logger.println("----- CRDA options ");
-        Client client = ClientBuilder.newClient();
-        logger.println("----- CRDA client ");
-        WebTarget target = client.target("http://crda-backend-crda.apps.sssc-cl01.appeng.rhecoeng.com/api/v3/dependency-analysis");
-        DependencyAnalysisService dependencyAnalysisService = (DependencyAnalysisService)target;
-        logger.println("----- CRDA dependencyAnalysisService ");
         PackageManagerService svc = redhat.jenkins.plugins.crda.service.PackageManagerServiceProvider.get(new File(this.getFile()));
         logger.println("----- CRDA svc: " + svc.getName());
-        Response response = dependencyAnalysisService.createReport(svc.getName(), options.isVerbose(), options.getSnykToken(), svc.generateSbom(new File(this.getFile()).toPath()));
-        logger.println("----- CRDA response ");
-        DepAnalysisDTO dto = processResponse(response);
-        processReport(dto.getReport(), listener);
-     //   saveHtmlReport(dto.getHtml());
+        logger.println("----- CRDA path: " + new File(this.getFile()).toPath());
+        try (Client client = ClientBuilder.newClient()) {
+            logger.println("----- CRDA client ");
+            WebTarget target = client.target("http://crda-backend-dev-crda.apps.sssc-cl01.appeng.rhecoeng.com/api/v3/dependency-analysis/");
+            target = target.path(svc.getName());
+            logger.println("----- CRDA target: " + target.path(svc.getName()));
+            target = target.queryParam("verbose", options.isVerbose());
+            Invocation.Builder builder = target.request(MediaType.APPLICATION_JSON_TYPE);
+            builder = builder.header("crda-snyk-token", options.getSnykToken());
+            String sbom = svc.generateSbom(new File(this.getFile()).toPath());
+            logger.println("----- CRDA SBOM generated: " + sbom);
+            try (Response response = builder.post(Entity.entity(svc.generateSbom(new File(this.getFile()).toPath()),MediaType.APPLICATION_JSON)) ) {
+                logger.println("----- CRDA response ");
+                logger.println(response.getStatus());
+                logger.println(response.getStringHeaders());
+                DepAnalysisDTO dto = processResponse(response);
+                processReport(dto.getReport(), listener);
+            }
+        }
+        //   saveHtmlReport(dto.getHtml());
 
 //    	String jenkinsPath = env.get("PATH");
 //    	String crdaUuid = Utils.getCRDACredential(this.getCrdaKeyId());
@@ -194,61 +200,61 @@ public class CRDABuilder extends Builder implements SimpleBuildStep {
     public static final class BuilderDescriptorImpl extends BuildStepDescriptor<Builder> {
 
         public BuilderDescriptorImpl() {
-        	load();
+            load();
         }
-    	
-    	public FormValidation doCheckFile(@QueryParameter String file)
+
+        public FormValidation doCheckFile(@QueryParameter String file)
                 throws IOException, ServletException {
-            if (file.length() == 0){
+            if (file.length() == 0) {
                 return FormValidation.error(Messages.CRDABuilder_DescriptorImpl_errors_missingFileName());
             }
             return FormValidation.ok();
         }
 
         public FormValidation doCheckCrdaKeyId(@QueryParameter String crdaKeyId)
-                        throws IOException, ServletException {
+                throws IOException, ServletException {
             int len = crdaKeyId.length();
-            if (len == 0){
+            if (len == 0) {
                 return FormValidation.error(Messages.CRDABuilder_DescriptorImpl_errors_missingUuid());
             }
             return FormValidation.ok();
         }
-        
+
         public FormValidation doCheckCliVersion(@QueryParameter String cliVersion)
                 throws IOException, ServletException {
-        	int len = cliVersion.length();
-            if (len == 0){
+            int len = cliVersion.length();
+            if (len == 0) {
                 return FormValidation.ok();
             }
             if (!Utils.urlExists(Config.CLI_URL.replace("version", cliVersion))) {
-            	return FormValidation.error(Messages.CRDABuilder_DescriptorImpl_errors_incorrectCli());
-        	}
-            
+                return FormValidation.error(Messages.CRDABuilder_DescriptorImpl_errors_incorrectCli());
+            }
+
             DefaultArtifactVersion cli = new DefaultArtifactVersion(cliVersion.replace("v", ""));
             DefaultArtifactVersion cliCompatible = new DefaultArtifactVersion("0.2.0");
-    		if (cli.compareTo(cliCompatible) <0 ) {
-    			return FormValidation.error(Messages.CRDABuilder_DescriptorImpl_errors_oldCli());
-    		}
-        	return FormValidation.ok();        	
+            if (cli.compareTo(cliCompatible) < 0) {
+                return FormValidation.error(Messages.CRDABuilder_DescriptorImpl_errors_oldCli());
+            }
+            return FormValidation.ok();
         }
-        
+
         @SuppressWarnings("deprecation")
-		public ListBoxModel doFillCrdaKeyIdItems(@AncestorInPath Item item, @QueryParameter String crdaKeyId) {
+        public ListBoxModel doFillCrdaKeyIdItems(@AncestorInPath Item item, @QueryParameter String crdaKeyId) {
             StandardListBoxModel model = new StandardListBoxModel();
             if (item == null) {
-              
-			Jenkins jenkins = Jenkins.getInstance();
-              if (!jenkins.hasPermission(Jenkins.ADMINISTER)) {
-                return model.includeCurrentValue(crdaKeyId);
-              }
+
+                Jenkins jenkins = Jenkins.getInstance();
+                if (!jenkins.hasPermission(Jenkins.ADMINISTER)) {
+                    return model.includeCurrentValue(crdaKeyId);
+                }
             } else {
-              if (!item.hasPermission(Item.EXTENDED_READ) && !item.hasPermission(CredentialsProvider.USE_ITEM)) {
-                return model.includeCurrentValue(crdaKeyId);
-              }
+                if (!item.hasPermission(Item.EXTENDED_READ) && !item.hasPermission(CredentialsProvider.USE_ITEM)) {
+                    return model.includeCurrentValue(crdaKeyId);
+                }
             }
             return model.includeEmptyValue()
-                        .includeAs(ACL.SYSTEM, item, CRDAKey.class)
-                        .includeCurrentValue(crdaKeyId);
+                    .includeAs(ACL.SYSTEM, item, CRDAKey.class)
+                    .includeCurrentValue(crdaKeyId);
         }
 
         @Override
@@ -266,33 +272,33 @@ public class CRDABuilder extends Builder implements SimpleBuildStep {
         Map<String, String> params = response.getMediaType().getParameters();
         ObjectMapper mapper = new ObjectMapper();
         String boundary = params.get("boundary");
-        if(boundary == null) {
+        if (boundary == null) {
             System.out.println("Missing response boundary");
             return null;
         }
         String body = response.readEntity(String.class);
         String[] lines = body.split("\n");
         int cursor = 0;
-        while(!lines[cursor].contains(boundary)) {
+        while (!lines[cursor].contains(boundary)) {
             cursor++;
         }
         cursor++;
-        while(lines[cursor].startsWith("Content-") || lines[cursor].isBlank()) {
+        while (lines[cursor].startsWith("Content-") || lines[cursor].isBlank()) {
             cursor++;
         }
         StringBuffer json = new StringBuffer();
-        while(!lines[cursor].contains(boundary)) {
+        while (!lines[cursor].contains(boundary)) {
             json.append(lines[cursor++]);
         }
-        while(!lines[cursor].contains(boundary)) {
+        while (!lines[cursor].contains(boundary)) {
             cursor++;
         }
         cursor++;
-        while(lines[cursor].startsWith("Content-") || lines[cursor].isBlank()) {
+        while (lines[cursor].startsWith("Content-") || lines[cursor].isBlank()) {
             cursor++;
         }
         StringBuffer html = new StringBuffer();
-        while(!lines[cursor].contains(boundary)) {
+        while (!lines[cursor].contains(boundary)) {
             html.append(lines[cursor++]);
         }
         try {

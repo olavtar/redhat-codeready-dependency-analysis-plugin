@@ -118,8 +118,7 @@ public class CRDABuilder extends Builder implements SimpleBuildStep {
 
         BackendOptions options = new BackendOptions();
         options.setVerbose(true);
-        options.setSnykToken("a8e5da4e-e5fc-482b-a0ce-e848d6932a05");
-        //options.setSnykToken("--snyk-token");
+        options.setSnykToken("--snyk-token");
         logger.println("----- CRDA options ");
         PackageManagerService svc = redhat.jenkins.plugins.crda.service.PackageManagerServiceProvider.get(new File(this.getFile()));
         logger.println("----- CRDA svc: " + svc.getName());
@@ -133,8 +132,8 @@ public class CRDABuilder extends Builder implements SimpleBuildStep {
             target = target.queryParam("verbose", options.isVerbose());
             Invocation.Builder builder = target.request(MediaType.APPLICATION_JSON_TYPE);
             builder = builder.header("crda-snyk-token", options.getSnykToken());
-//            String sbom = svc.generateSbom(new File(this.getFile()).toPath());
-//            logger.println("----- CRDA SBOM generated: " + sbom);
+            String sbom = svc.generateSbom(new File(this.getFile()).toPath());
+            logger.println("----- CRDA SBOM generated: " + sbom);
             try (Response response = builder.post(Entity.entity(svc.generateSbom(new File(this.getFile()).toPath()),MediaType.APPLICATION_JSON)) ) {
                 logger.println("----- CRDA response ");
                 logger.println(response.getStatus());

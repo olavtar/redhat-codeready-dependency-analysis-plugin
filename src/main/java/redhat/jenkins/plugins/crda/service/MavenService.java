@@ -25,13 +25,13 @@ public class MavenService implements PackageManagerService {
     public String generateSbom(Path path) throws IOException {
         validateFile(path);
         Path filtered = filterIgnoredDependencies(path);
-        Process process = Runtime.getRuntime().exec("mvn org.cyclonedx:cyclonedx-maven-plugin:2.7.6:makeBom -DincludeTestScope=false -DoutputFormat=json -DoutputName=project-bom -f " + filtered);
+        Process process = Runtime.getRuntime().exec("/opt/homebrew/bin/mvn org.cyclonedx:cyclonedx-maven-plugin:2.7.6:makeBom -DincludeTestScope=false -DoutputFormat=json -DoutputName=project-bom -f " + filtered);
         try {
             int exitCode = process.waitFor();
             if(exitCode != 0) {
                 throw new IOException("Unable to generate SBOM for " + path + ". Maven returned exit code: " + exitCode);
             } else {
-                Path bomPath = Path.of("target", "project-bom.json");
+                Path bomPath = Path.of(path.getParent() + "/target/project-bom.json");
                 return readFile(bomPath);
             }
         } catch (InterruptedException e) {
@@ -52,7 +52,7 @@ public class MavenService implements PackageManagerService {
 
     private Path filterIgnoredDependencies(Path source) throws IOException {
         BufferedReader reader = Files.newBufferedReader(source);
-        Path target = Path.of("filtered-pom.xml");
+        Path target = Path.of(source.getParent() + "/filtered-pom.xml");
         BufferedWriter writer = Files.newBufferedWriter(target);
         String line;
         boolean ignore = false;

@@ -44,6 +44,7 @@ import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
+import redhat.jenkins.plugins.crda.action.CRDAAction;
 import redhat.jenkins.plugins.crda.client.BackendOptions;
 import redhat.jenkins.plugins.crda.client.DepAnalysisDTO;
 import redhat.jenkins.plugins.crda.credentials.CRDAKey;
@@ -111,14 +112,14 @@ public class CRDABuilder extends Builder implements SimpleBuildStep {
     }
 
     @Override
-    public void perform(Run<?, ?> run, FilePath workspace, EnvVars env, Launcher launcher, TaskListener listener) throws IOException {
+    public void perform(Run<?, ?> run, FilePath workspace, EnvVars env, Launcher launcher, TaskListener listener) throws IOException, InterruptedException {
         PrintStream logger = listener.getLogger();
         logger.println("----- CRDA Analysis Begins -----");
         logger.println("----- CRDA Analysis New Backend CRDABuilder -----");
-
+        String snykToken = Utils.getCRDACredential(this.getCrdaKeyId());
         BackendOptions options = new BackendOptions();
         options.setVerbose(true);
-        options.setSnykToken("--snyk-token");
+        options.setSnykToken(snykToken);
         logger.println("----- CRDA options ");
         PackageManagerService svc = redhat.jenkins.plugins.crda.service.PackageManagerServiceProvider.get(new File(this.getFile()));
         logger.println("----- CRDA svc: " + svc.getName());
@@ -126,15 +127,13 @@ public class CRDABuilder extends Builder implements SimpleBuildStep {
 
         try (Client client = ClientBuilder.newClient()) {
             logger.println("----- CRDA client ");
-            WebTarget target = client.target("http://crda-backend-dev-crda.apps.sssc-cl01.appeng.rhecoeng.com/api/v3/dependency-analysis/");
-            target = target.path(svc.getName());
-            logger.println("----- CRDA target: " + target.path(svc.getName()));
+            WebTarget target = client.target("http://crda-backend-dev-crda.apps.sssc-cl01.appeng.rhecoeng.com/api/v3/dependency-analysis/" + svc.getName());
+            //     target = target.path(svc.getName());
+            logger.println("----- CRDA target: " + target.getUri());
             target = target.queryParam("verbose", options.isVerbose());
             Invocation.Builder builder = target.request(MediaType.APPLICATION_JSON_TYPE);
             builder = builder.header("crda-snyk-token", options.getSnykToken());
-            String sbom = svc.generateSbom(new File(this.getFile()).toPath());
-            logger.println("----- CRDA SBOM generated: " + sbom);
-            try (Response response = builder.post(Entity.entity(svc.generateSbom(new File(this.getFile()).toPath()),MediaType.APPLICATION_JSON)) ) {
+            try (Response response = builder.post(Entity.entity(svc.generateSbom(new File(this.getFile()).toPath()), MediaType.APPLICATION_JSON_TYPE))) {
                 logger.println("----- CRDA response ");
                 logger.println(response.getStatus());
                 logger.println(response.getStringHeaders());
@@ -142,6 +141,17 @@ public class CRDABuilder extends Builder implements SimpleBuildStep {
                 processReport(dto.getReport(), listener);
             }
         }
+
+//        try (Client client = ClientBuilder.newClient()) {
+//            logger.println("----- CRDA client ");
+//            WebTarget target = client.target("https://jsonplaceholder.typicode.com/todos/1");
+//            Invocation.Builder builder = target.request(MediaType.APPLICATION_JSON_TYPE);
+//            try (Response response = builder.get()) {
+//                logger.println("----- CRDA response ");
+//                logger.println(response.getStatus());
+//                logger.println(response.readEntity(String.class));
+//            }
+//        }
         //   saveHtmlReport(dto.getHtml());
 
 //    	String jenkinsPath = env.get("PATH");

@@ -16,16 +16,16 @@
 
 package redhat.jenkins.plugins.crda.action;
 
+import com.redhat.ecosystemappeng.crda.api.AnalysisReport;
 import hudson.model.Run;
 import jenkins.model.RunAction2;
-import org.json.JSONObject;
 import redhat.jenkins.plugins.crda.model.Results;
 
 public class CRDAAction implements RunAction2 {
 
     private transient Run run;
     private String uuid;
-    private Results results;
+    private AnalysisReport report;
 
 
     @Override
@@ -42,22 +42,22 @@ public class CRDAAction implements RunAction2 {
         return run;
     }
 
-    public CRDAAction(String uuid, JSONObject res) {
+    public CRDAAction(String uuid, AnalysisReport report) {
         this.uuid = uuid;
-        this.results = new Results(res);
+        this.report = report;
     }
 
     public String getUuid() {
             return uuid;
     }
     
-    public Results getResults() {
-        return results;
+    public AnalysisReport getReport() {
+        return report;
 	}
 
     @Override
     public String getIconFileName() {
-        return "/plugin/redhat-codeready-dependency-analysis/icons/redhat.png";
+        return "/plugin/redhat-codeready-dependency-analysis-test/icons/redhat.png";
     }
 
     @Override

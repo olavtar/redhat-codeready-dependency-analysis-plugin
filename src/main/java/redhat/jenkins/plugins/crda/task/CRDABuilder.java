@@ -44,23 +44,24 @@ import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
-import redhat.jenkins.plugins.crda.action.CRDAAction;
 import redhat.jenkins.plugins.crda.client.BackendOptions;
 import redhat.jenkins.plugins.crda.client.DepAnalysisDTO;
 import redhat.jenkins.plugins.crda.credentials.CRDAKey;
+import redhat.jenkins.plugins.crda.service.DependencyAnalysisService;
 import redhat.jenkins.plugins.crda.service.PackageManagerService;
 import redhat.jenkins.plugins.crda.utils.Config;
 import redhat.jenkins.plugins.crda.utils.Utils;
 
 import javax.servlet.ServletException;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.io.Serializable;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Map;
 
 
-public class CRDABuilder extends Builder implements SimpleBuildStep {
+public class CRDABuilder extends Builder implements SimpleBuildStep, Serializable {
 
     private String file;
     private String crdaKeyId;
@@ -121,26 +122,44 @@ public class CRDABuilder extends Builder implements SimpleBuildStep {
         options.setVerbose(true);
         options.setSnykToken(snykToken);
         logger.println("----- CRDA options ");
-        PackageManagerService svc = redhat.jenkins.plugins.crda.service.PackageManagerServiceProvider.get(new File(this.getFile()));
+        Path manifestPath = Paths.get(getFile());
+        if (manifestPath.getParent() == null) {
+            logger.println("Manifest file location does not include a directory so it must just be the file name");
+            manifestPath = Paths.get(workspace.child(getFile()).toURI());
+        }
+        PackageManagerService svc = redhat.jenkins.plugins.crda.service.PackageManagerServiceProvider.get(manifestPath.toFile());
         logger.println("----- CRDA svc: " + svc.getName());
-        logger.println("----- CRDA path: " + new File(this.getFile()).toPath());
+        logger.println("----- CRDA path: " + manifestPath);
+        DependencyAnalysisService dependencyAnalysisService = null;
 
         try (Client client = ClientBuilder.newClient()) {
             logger.println("----- CRDA client ");
-            WebTarget target = client.target("http://crda-backend-dev-crda.apps.sssc-cl01.appeng.rhecoeng.com/api/v3/dependency-analysis/" + svc.getName());
+            WebTarget target = client.target("http://localhost:8082/api/v3/dependency-analysis/" + svc.getName());
+       //     WebTarget target = client.target("http://crda-backend-dev-crda.apps.sssc-cl01.appeng.rhecoeng.com/api/v3/dependency-analysis/" + svc.getName());
             //     target = target.path(svc.getName());
             logger.println("----- CRDA target: " + target.getUri());
             target = target.queryParam("verbose", options.isVerbose());
             Invocation.Builder builder = target.request(MediaType.APPLICATION_JSON_TYPE);
             builder = builder.header("crda-snyk-token", options.getSnykToken());
-            try (Response response = builder.post(Entity.entity(svc.generateSbom(new File(this.getFile()).toPath()), MediaType.APPLICATION_JSON_TYPE))) {
+            try (Response response = builder.post(Entity.entity(svc.generateSbom(manifestPath), MediaType.APPLICATION_JSON_TYPE))) {
                 logger.println("----- CRDA response ");
                 logger.println(response.getStatus());
                 logger.println(response.getStringHeaders());
-                DepAnalysisDTO dto = processResponse(response);
+                DepAnalysisDTO dto = processResponse(response, listener);
                 processReport(dto.getReport(), listener);
             }
         }
+//        try {
+//            Response response = dependencyAnalysisService.createReport(svc.getName(), true,snykToken, svc.generateSbom(new File(this.getFile()).toPath()));
+//            logger.println("----- CRDA response ");
+//            logger.println(response.getStatus());
+//            logger.println(response.getStringHeaders());
+//            DepAnalysisDTO dto = processResponse(response);
+//            processReport(dto.getReport(), listener);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+
 
 //        try (Client client = ClientBuilder.newClient()) {
 //            logger.println("----- CRDA client ");
@@ -280,41 +299,45 @@ public class CRDABuilder extends Builder implements SimpleBuildStep {
         }
     }
 
-    private DepAnalysisDTO processResponse(Response response) {
+    private DepAnalysisDTO processResponse(Response response, TaskListener listener) {
+        PrintStream logger = listener.getLogger();
+        logger.println("processResponse");
         Map<String, String> params = response.getMediaType().getParameters();
         ObjectMapper mapper = new ObjectMapper();
         String boundary = params.get("boundary");
-        if (boundary == null) {
-            System.out.println("Missing response boundary");
-            return null;
-        }
+        logger.println("boundary: "+ boundary);
+//        if (boundary == null) {
+//            logger.println("Missing response boundary");
+//            return null;
+//        }
         String body = response.readEntity(String.class);
-        String[] lines = body.split("\n");
-        int cursor = 0;
-        while (!lines[cursor].contains(boundary)) {
-            cursor++;
-        }
-        cursor++;
-        while (lines[cursor].startsWith("Content-") || lines[cursor].isBlank()) {
-            cursor++;
-        }
-        StringBuffer json = new StringBuffer();
-        while (!lines[cursor].contains(boundary)) {
-            json.append(lines[cursor++]);
-        }
-        while (!lines[cursor].contains(boundary)) {
-            cursor++;
-        }
-        cursor++;
-        while (lines[cursor].startsWith("Content-") || lines[cursor].isBlank()) {
-            cursor++;
-        }
-        StringBuffer html = new StringBuffer();
-        while (!lines[cursor].contains(boundary)) {
-            html.append(lines[cursor++]);
-        }
+        logger.println("body: "+ body);
+//        String[] lines = body.split("\n");
+//        int cursor = 0;
+//        while (!lines[cursor].contains(boundary)) {
+//            cursor++;
+//        }
+//        cursor++;
+//        while (lines[cursor].startsWith("Content-") || lines[cursor].isBlank()) {
+//            cursor++;
+//        }
+//        StringBuffer json = new StringBuffer();
+//        while (!lines[cursor].contains(boundary)) {
+//            json.append(lines[cursor++]);
+//        }
+//        while (!lines[cursor].contains(boundary)) {
+//            cursor++;
+//        }
+//        cursor++;
+//        while (lines[cursor].startsWith("Content-") || lines[cursor].isBlank()) {
+//            cursor++;
+//        }
+//        StringBuffer html = new StringBuffer();
+//        while (!lines[cursor].contains(boundary)) {
+//            html.append(lines[cursor++]);
+//        }
         try {
-            return new DepAnalysisDTO(mapper.readValue(json.toString(), AnalysisReport.class), html.toString());
+            return new DepAnalysisDTO(mapper.readValue(body, AnalysisReport.class), body);
         } catch (JsonProcessingException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();

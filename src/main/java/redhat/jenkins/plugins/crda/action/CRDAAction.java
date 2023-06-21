@@ -26,6 +26,7 @@ public class CRDAAction implements RunAction2 {
     private transient Run run;
     private String uuid;
     private AnalysisReport report;
+    private int scanned;
 
 
     @Override
@@ -45,12 +46,13 @@ public class CRDAAction implements RunAction2 {
     public CRDAAction(String uuid, AnalysisReport report) {
         this.uuid = uuid;
         this.report = report;
+
     }
 
     public String getUuid() {
             return uuid;
     }
-    
+
     public AnalysisReport getReport() {
         return report;
 	}
@@ -68,5 +70,9 @@ public class CRDAAction implements RunAction2 {
     @Override
     public String getUrlName() {
         return "stack_report";
+    }
+
+    public int getScanned() {
+        return report.summary().dependencies().scanned();
     }
 }

@@ -91,7 +91,7 @@
             </div>
             <script>
                 function generateURL(){
-                    var url = `${it.results.saUrl}`
+                    var url = `${it.report.saUrl}`
                     return url
                 }
             </script>

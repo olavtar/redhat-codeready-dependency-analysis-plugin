@@ -117,26 +117,18 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
     public void perform(Run<?, ?> run, FilePath workspace, EnvVars env, Launcher launcher, TaskListener listener) throws IOException, InterruptedException {
         PrintStream logger = listener.getLogger();
         logger.println("----- CRDA Analysis Begins -----");
-        logger.println("----- CRDA Analysis New Backend CRDABuilder -----");
         String snykToken = Utils.getCRDACredential(this.getCrdaKeyId());
         BackendOptions options = new BackendOptions();
         options.setVerbose(true);
         options.setSnykToken(snykToken);
         Path manifestPath = Paths.get(getFile());
         if (manifestPath.getParent() == null) {
-            logger.println("Manifest file location does not include a directory so it must just be the file name");
             manifestPath = Paths.get(workspace.child(getFile()).toURI());
         }
         PackageManagerService svc = redhat.jenkins.plugins.crda.service.PackageManagerServiceProvider.get(manifestPath.toFile());
-        logger.println("----- CRDA svc: " + svc.getName());
-        logger.println("----- CRDA path: " + manifestPath);
-     //   DependencyAnalysisService dependencyAnalysisService = null;
 
         try (Client client = ClientBuilder.newClient()) {
             WebTarget target = client.target("http://localhost:8082/api/v3/dependency-analysis/" + svc.getName());
-       //     WebTarget target = client.target("http://crda-backend-dev-crda.apps.sssc-cl01.appeng.rhecoeng.com/api/v3/dependency-analysis/" + svc.getName());
-            //     target = target.path(svc.getName());
-            logger.println("----- CRDA target: " + target.getUri());
             target = target.queryParam("verbose", options.isVerbose());
             Invocation.Builder builder = target.request(MediaType.APPLICATION_JSON_TYPE);
             builder = builder.header("crda-snyk-token", options.getSnykToken());
@@ -146,6 +138,8 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
                 logger.println(response.getStringHeaders());
                 DepAnalysisDTO dto = processResponse(response, listener);
                 processReport(dto.getReport(), listener);
+                logger.println("Click on the CRDA Stack Report icon to view the detailed report");
+                logger.println("----- CRDA Analysis Ends -----");
                 run.addAction(new CRDAAction(snykToken, dto.getReport()));
             }
         }
@@ -302,7 +296,6 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
 
     private DepAnalysisDTO processResponse(Response response, TaskListener listener) throws JsonProcessingException {
         PrintStream logger = listener.getLogger();
-        logger.println("processResponse");
         Map<String, String> params = response.getMediaType().getParameters();
         ObjectMapper mapper = new ObjectMapper();
         String body = response.readEntity(String.class);

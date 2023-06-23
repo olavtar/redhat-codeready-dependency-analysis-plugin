@@ -123,6 +123,10 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
         String snykToken = Utils.getCRDACredential(this.getCrdaKeyId());
 
         logger.println("PATH: " + System.getenv("PATH"));
+        logger.println("MVN: " + System.getenv("CRDA_MVN_PATH"));
+        logger.println("SNYK: " + System.getenv("CRDA_SNYK_TOKEN"));
+        logger.println("BACKEND: " + System.getenv("CRDA_BACKEND_URL"));
+
         Path manifestPath = Paths.get(getFile());
         if (manifestPath.getParent() == null) {
             manifestPath = Paths.get(workspace.child(getFile()).toURI());

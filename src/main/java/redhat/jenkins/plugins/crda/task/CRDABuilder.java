@@ -135,14 +135,15 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
         // instantiate the Crda API implementation
         var crdaApi = new CrdaApi();
         // get a byte array future holding a html report
-       // CompletableFuture<byte[]> htmlReport = crdaApi.stackAnalysisHtmlAsync(manifestPath.toString());
+        CompletableFuture<byte[]> htmlReport = crdaApi.stackAnalysisHtmlAsync(manifestPath.toString());
         // get a AnalysisReport future holding a deserialized report
         CompletableFuture<AnalysisReport> analysisReport = crdaApi.stackAnalysisAsync(manifestPath.toString());
         try {
-            processReport(analysisReport, listener);
+            processReport(analysisReport.get(), listener);
+            saveHtmlReport(String.valueOf(htmlReport.get()), listener, workspace);
             logger.println("Click on the CRDA Stack Report icon to view the detailed report");
             logger.println("----- CRDA Analysis Ends -----");
-           // run.addAction(new CRDAAction(snykToken, dto.getReport()));
+            run.addAction(new CRDAAction(snykToken, analysisReport.get()));
         } catch (ExecutionException e) {
             e.printStackTrace();
         }
@@ -337,14 +338,14 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
 //        }
 //    }
 
-    private void processReport(CompletableFuture<AnalysisReport> report, TaskListener listener) throws ExecutionException, InterruptedException {
+    private void processReport(AnalysisReport report, TaskListener listener) throws ExecutionException, InterruptedException {
         PrintStream logger = listener.getLogger();
-        DependenciesSummary dependenciesSummary = report.get().getSummary().getDependencies();
-        VulnerabilitiesSummary vulnerabilitiesSummary = report.get().getSummary().getVulnerabilities();
+        DependenciesSummary dependenciesSummary = report.getSummary().getDependencies();
+        VulnerabilitiesSummary vulnerabilitiesSummary = report.getSummary().getVulnerabilities();
         logger.println("Summary");
         logger.println("  Dependencies");
         logger.println("    Scanned dependencies:    " + dependenciesSummary.getScanned());
-        logger.println("    Transitive dependencies: " + dependenciesSummary.getScanned());
+        logger.println("    Transitive dependencies: " + dependenciesSummary.getTransitive());
         logger.println("  Vulnerabilities");
         logger.println("    Total: " + vulnerabilitiesSummary.getTotal());
         logger.println("    Direct: " + vulnerabilitiesSummary.getDirect());

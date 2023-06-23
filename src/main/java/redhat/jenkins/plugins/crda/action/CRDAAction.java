@@ -20,8 +20,6 @@ import com.redhat.crda.backend.AnalysisReport;
 import hudson.model.Run;
 import jenkins.model.RunAction2;
 
-import java.math.BigDecimal;
-
 public class CRDAAction implements RunAction2 {
 
     private transient Run run;
@@ -71,9 +69,5 @@ public class CRDAAction implements RunAction2 {
     @Override
     public String getUrlName() {
         return "stack_report";
-    }
-
-    public BigDecimal getScanned() {
-        return report.getSummary().getDependencies().getScanned();
     }
 }

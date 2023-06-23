@@ -18,9 +18,10 @@ package redhat.jenkins.plugins.crda.task;
 
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.redhat.ecosystemappeng.crda.api.AnalysisReport;
+import com.redhat.crda.backend.AnalysisReport;
+import com.redhat.crda.backend.DependenciesSummary;
+import com.redhat.crda.backend.VulnerabilitiesSummary;
+import com.redhat.crda.impl.CrdaApi;
 import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
@@ -48,18 +49,20 @@ import redhat.jenkins.plugins.crda.action.CRDAAction;
 import redhat.jenkins.plugins.crda.client.BackendOptions;
 import redhat.jenkins.plugins.crda.client.DepAnalysisDTO;
 import redhat.jenkins.plugins.crda.credentials.CRDAKey;
-import redhat.jenkins.plugins.crda.service.DependencyAnalysisService;
 import redhat.jenkins.plugins.crda.service.PackageManagerService;
 import redhat.jenkins.plugins.crda.utils.Config;
 import redhat.jenkins.plugins.crda.utils.Utils;
 
 import javax.servlet.ServletException;
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.Serializable;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 
 public class CRDABuilder extends Builder implements SimpleBuildStep, Serializable {
@@ -118,32 +121,55 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
         PrintStream logger = listener.getLogger();
         logger.println("----- CRDA Analysis Begins -----");
         String snykToken = Utils.getCRDACredential(this.getCrdaKeyId());
-        BackendOptions options = new BackendOptions();
-        options.setVerbose(true);
-        options.setSnykToken(snykToken);
+
+        logger.println("PATH: " + System.getenv("PATH"));
         Path manifestPath = Paths.get(getFile());
         if (manifestPath.getParent() == null) {
             manifestPath = Paths.get(workspace.child(getFile()).toURI());
         }
-        PackageManagerService svc = redhat.jenkins.plugins.crda.service.PackageManagerServiceProvider.get(manifestPath.toFile());
 
-        try (Client client = ClientBuilder.newClient()) {
-            WebTarget target = client.target("http://localhost:8082/api/v3/dependency-analysis/" + svc.getName());
-            target = target.queryParam("verbose", options.isVerbose());
-            Invocation.Builder builder = target.request(MediaType.APPLICATION_JSON_TYPE);
-            builder = builder.header("crda-snyk-token", options.getSnykToken());
-            try (Response response = builder.post(Entity.entity(svc.generateSbom(manifestPath), MediaType.APPLICATION_JSON_TYPE))) {
-                logger.println("----- CRDA response ");
-                logger.println(response.getStatus());
-                logger.println(response.getStringHeaders());
-                DepAnalysisDTO dto = processResponse(response, listener);
-                processReport(dto.getReport(), listener);
-                logger.println("Click on the CRDA Stack Report icon to view the detailed report");
-                logger.println("----- CRDA Analysis Ends -----");
-                run.addAction(new CRDAAction(snykToken, dto.getReport()));
-            }
+        // instantiate the Crda API implementation
+        var crdaApi = new CrdaApi();
+        // get a byte array future holding a html report
+       // CompletableFuture<byte[]> htmlReport = crdaApi.stackAnalysisHtmlAsync(manifestPath.toString());
+        // get a AnalysisReport future holding a deserialized report
+        CompletableFuture<AnalysisReport> analysisReport = crdaApi.stackAnalysisAsync(manifestPath.toString());
+        try {
+            processReport(analysisReport, listener);
+            logger.println("Click on the CRDA Stack Report icon to view the detailed report");
+            logger.println("----- CRDA Analysis Ends -----");
+           // run.addAction(new CRDAAction(snykToken, dto.getReport()));
+        } catch (ExecutionException e) {
+            e.printStackTrace();
         }
 
+
+//        BackendOptions options = new BackendOptions();
+//        options.setVerbose(true);
+//        options.setSnykToken(snykToken);
+//        Path manifestPath = Paths.get(getFile());
+//        if (manifestPath.getParent() == null) {
+//            manifestPath = Paths.get(workspace.child(getFile()).toURI());
+//        }
+//        PackageManagerService svc = redhat.jenkins.plugins.crda.service.PackageManagerServiceProvider.get(manifestPath.toFile());
+//        logger.println("----- CRDA path: " + manifestPath);
+//
+//        try (Client client = ClientBuilder.newClient()) {
+//            WebTarget target = client.target("http://localhost:8082/api/v3/dependency-analysis/" + svc.getName());
+//            target = target.queryParam("verbose", options.isVerbose());
+//            Invocation.Builder builder = target.request(MediaType.APPLICATION_JSON_TYPE);
+//            builder = builder.header("crda-snyk-token", options.getSnykToken());
+//            try (Response response = builder.post(Entity.entity(svc.generateSbom(manifestPath), MediaType.APPLICATION_JSON_TYPE))) {
+//                DepAnalysisDTO dto = processResponse(response, listener);
+//                processReport(dto.getReport(), listener);
+//                saveHtmlReport(dto.getHtml(), listener, workspace);
+//                logger.println("Click on the CRDA Stack Report icon to view the detailed report");
+//                logger.println("----- CRDA Analysis Ends -----");
+//                run.addAction(new CRDAAction(snykToken, dto.getReport()));
+//            }
+//        }
+
+        //----------OLD JENKINS
 //        try {
 //            Response response = dependencyAnalysisService.createReport(svc.getName(), true,snykToken, svc.generateSbom(new File(this.getFile()).toPath()));
 //            logger.println("----- CRDA response ");
@@ -294,47 +320,55 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
         }
     }
 
-    private DepAnalysisDTO processResponse(Response response, TaskListener listener) throws JsonProcessingException {
-        PrintStream logger = listener.getLogger();
-        Map<String, String> params = response.getMediaType().getParameters();
-        ObjectMapper mapper = new ObjectMapper();
-        String body = response.readEntity(String.class);
-        try {
-            return new DepAnalysisDTO(mapper.readValue(body, AnalysisReport.class), body);
-        } catch (JsonProcessingException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-            return null;
-        }
-    }
+//    private DepAnalysisDTO processResponse(Response response, TaskListener listener) throws JsonProcessingException {
+//        Map<String, String> params = response.getMediaType().getParameters();
+//        ObjectMapper mapper = new ObjectMapper();
+//        String body = response.readEntity(String.class);
+//        try {
+//            return new DepAnalysisDTO(mapper.readValue(body, AnalysisReport.class), body);
+//        } catch (JsonProcessingException e) {
+//            // TODO Auto-generated catch block
+//            e.printStackTrace();
+//            return null;
+//        }
+//    }
 
-    private void processReport(AnalysisReport report, TaskListener listener) {
+    private void processReport(CompletableFuture<AnalysisReport> report, TaskListener listener) throws ExecutionException, InterruptedException {
         PrintStream logger = listener.getLogger();
+        DependenciesSummary dependenciesSummary = report.get().getSummary().getDependencies();
+        VulnerabilitiesSummary vulnerabilitiesSummary = report.get().getSummary().getVulnerabilities();
         logger.println("Summary");
         logger.println("  Dependencies");
-        logger.println("    Scanned dependencies:    " + report.summary().dependencies().scanned());
-        logger.println("    Transitive dependencies: " + report.summary().dependencies().transitive());
+        logger.println("    Scanned dependencies:    " + dependenciesSummary.getScanned());
+        logger.println("    Transitive dependencies: " + dependenciesSummary.getScanned());
         logger.println("  Vulnerabilities");
-        logger.println("    Total: " + report.summary().vulnerabilities().total());
-        logger.println("    Direct: " + report.summary().vulnerabilities().direct());
-        logger.println("    Critical: " + report.summary().vulnerabilities().critical());
-        logger.println("    High: " + report.summary().vulnerabilities().high());
-        logger.println("    Medium: " + report.summary().vulnerabilities().medium());
-        logger.println("    Low: " + report.summary().vulnerabilities().low());
+        logger.println("    Total: " + vulnerabilitiesSummary.getTotal());
+        logger.println("    Direct: " + vulnerabilitiesSummary.getDirect());
+        logger.println("    Critical: " + vulnerabilitiesSummary.getCritical());
+        logger.println("    High: " + vulnerabilitiesSummary.getHigh());
+        logger.println("    Medium: " + vulnerabilitiesSummary.getMedium());
+        logger.println("    Low: " + vulnerabilitiesSummary.getLow());
         logger.println("");
     }
 
-//    private void saveHtmlReport(String html) {
+    private void saveHtmlReport(String html, TaskListener listener, FilePath workspace) throws IOException, InterruptedException {
+        PrintStream logger = listener.getLogger();
+        logger.println("saveHtml");
+        logger.println("Path: " + Paths.get(workspace.toURI()));
 //        try {
-//            Path temp = Files.createTempFile("dependency-analysis-report", ".html");
-//            BufferedWriter writer = Files.newBufferedWriter(temp);
-//            writer.append(html);
-//            writer.close();
-//            System.out.println("You can find the detailed HTML report in: " + temp);
+           // Path temp = Files.createTempFile("dependency-analysis-report", ".html");
+       //     Path temp = Files.createFile(Paths.get(workspace.toURI())+"/dependency-analysis-report.html");
+           // Path reportPath = Files.createFile(Paths.get(workspace.toURI() + "/dependency-analysis-report.html"));
+            Path reportPath = Paths.get("/Users/olgalavtar/temp/dependency-analysis-report.html");
+            logger.println("reportPath: " + reportPath);
+            BufferedWriter writer = Files.newBufferedWriter(reportPath);
+            writer.append(html);
+            writer.close();
+            logger.println("You can find the detailed HTML report in: " + reportPath);
 //        } catch (IOException e) {
 //            // TODO Auto-generated catch block
 //            e.printStackTrace();
 //        }
-//    }
+    }
 
 }

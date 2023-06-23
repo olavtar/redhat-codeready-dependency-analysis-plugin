@@ -56,6 +56,8 @@
                 Analysis Symmary
             </h2>
             <h3>Dependency Details</h3>
+			<div>------</div>
+			<div>it.report</div>
             <table>
             	<tr>
 						    <th>Keyword</th>

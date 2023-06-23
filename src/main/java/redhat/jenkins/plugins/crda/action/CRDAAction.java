@@ -16,10 +16,11 @@
 
 package redhat.jenkins.plugins.crda.action;
 
-import com.redhat.ecosystemappeng.crda.api.AnalysisReport;
+import com.redhat.crda.backend.AnalysisReport;
 import hudson.model.Run;
 import jenkins.model.RunAction2;
-import redhat.jenkins.plugins.crda.model.Results;
+
+import java.math.BigDecimal;
 
 public class CRDAAction implements RunAction2 {
 
@@ -72,7 +73,7 @@ public class CRDAAction implements RunAction2 {
         return "stack_report";
     }
 
-    public int getScanned() {
-        return report.summary().dependencies().scanned();
+    public BigDecimal getScanned() {
+        return report.getSummary().getDependencies().getScanned();
     }
 }

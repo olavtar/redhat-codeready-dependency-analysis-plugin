@@ -1,6 +1,6 @@
 package redhat.jenkins.plugins.crda.client;
 
-import com.redhat.ecosystemappeng.crda.api.AnalysisReport;
+import com.redhat.crda.backend.AnalysisReport;
 
 public class DepAnalysisDTO {
 

@@ -26,41 +26,31 @@ import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
-import hudson.model.AbstractProject;
-import hudson.model.Item;
-import hudson.model.Run;
-import hudson.model.TaskListener;
+import hudson.model.*;
 import hudson.security.ACL;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
-import jakarta.ws.rs.client.*;
-import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
 import jenkins.model.Jenkins;
 import jenkins.tasks.SimpleBuildStep;
+import org.apache.commons.io.FileUtils;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import redhat.jenkins.plugins.crda.action.CRDAAction;
-import redhat.jenkins.plugins.crda.client.BackendOptions;
-import redhat.jenkins.plugins.crda.client.DepAnalysisDTO;
 import redhat.jenkins.plugins.crda.credentials.CRDAKey;
-import redhat.jenkins.plugins.crda.service.PackageManagerService;
 import redhat.jenkins.plugins.crda.utils.Config;
 import redhat.jenkins.plugins.crda.utils.Utils;
 
 import javax.servlet.ServletException;
-import java.io.BufferedWriter;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.io.Serializable;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Base64;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -122,10 +112,10 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
         logger.println("----- CRDA Analysis Begins -----");
         String snykToken = Utils.getCRDACredential(this.getCrdaKeyId());
 
-        logger.println("PATH: " + System.getenv("PATH"));
-        logger.println("MVN: " + System.getenv("CRDA_MVN_PATH"));
-        logger.println("SNYK: " + System.getenv("CRDA_SNYK_TOKEN"));
-        logger.println("BACKEND: " + System.getenv("CRDA_BACKEND_URL"));
+//        logger.println("PATH: " + System.getenv("PATH"));
+//        logger.println("MVN: " + System.getenv("CRDA_MVN_PATH"));
+//        logger.println("SNYK: " + System.getenv("CRDA_SNYK_TOKEN"));
+//        logger.println("BACKEND: " + System.getenv("CRDA_BACKEND_URL"));
 
         Path manifestPath = Paths.get(getFile());
         if (manifestPath.getParent() == null) {
@@ -136,121 +126,21 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
         var crdaApi = new CrdaApi();
         // get a byte array future holding a html report
         CompletableFuture<byte[]> htmlReport = crdaApi.stackAnalysisHtmlAsync(manifestPath.toString());
+
         // get a AnalysisReport future holding a deserialized report
         CompletableFuture<AnalysisReport> analysisReport = crdaApi.stackAnalysisAsync(manifestPath.toString());
         try {
             processReport(analysisReport.get(), listener);
-            saveHtmlReport(String.valueOf(htmlReport.get()), listener, workspace);
+           // saveHtmlReport(htmlReport.get(), listener, workspace);
+
+            File file = new File(workspace + "/dependency-analysis-report.html");
+            FileUtils.writeByteArrayToFile(file,htmlReport.get());
             logger.println("Click on the CRDA Stack Report icon to view the detailed report");
             logger.println("----- CRDA Analysis Ends -----");
-            run.addAction(new CRDAAction(snykToken, analysisReport.get()));
+            run.addAction(new CRDAAction(snykToken, analysisReport.get(), workspace + "/dependency-analysis-report.html"));
         } catch (ExecutionException e) {
             e.printStackTrace();
         }
-
-
-//        BackendOptions options = new BackendOptions();
-//        options.setVerbose(true);
-//        options.setSnykToken(snykToken);
-//        Path manifestPath = Paths.get(getFile());
-//        if (manifestPath.getParent() == null) {
-//            manifestPath = Paths.get(workspace.child(getFile()).toURI());
-//        }
-//        PackageManagerService svc = redhat.jenkins.plugins.crda.service.PackageManagerServiceProvider.get(manifestPath.toFile());
-//        logger.println("----- CRDA path: " + manifestPath);
-//
-//        try (Client client = ClientBuilder.newClient()) {
-//            WebTarget target = client.target("http://localhost:8082/api/v3/dependency-analysis/" + svc.getName());
-//            target = target.queryParam("verbose", options.isVerbose());
-//            Invocation.Builder builder = target.request(MediaType.APPLICATION_JSON_TYPE);
-//            builder = builder.header("crda-snyk-token", options.getSnykToken());
-//            try (Response response = builder.post(Entity.entity(svc.generateSbom(manifestPath), MediaType.APPLICATION_JSON_TYPE))) {
-//                DepAnalysisDTO dto = processResponse(response, listener);
-//                processReport(dto.getReport(), listener);
-//                saveHtmlReport(dto.getHtml(), listener, workspace);
-//                logger.println("Click on the CRDA Stack Report icon to view the detailed report");
-//                logger.println("----- CRDA Analysis Ends -----");
-//                run.addAction(new CRDAAction(snykToken, dto.getReport()));
-//            }
-//        }
-
-        //----------OLD JENKINS
-//        try {
-//            Response response = dependencyAnalysisService.createReport(svc.getName(), true,snykToken, svc.generateSbom(new File(this.getFile()).toPath()));
-//            logger.println("----- CRDA response ");
-//            logger.println(response.getStatus());
-//            logger.println(response.getStringHeaders());
-//            DepAnalysisDTO dto = processResponse(response);
-//            processReport(dto.getReport(), listener);
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-
-
-//        try (Client client = ClientBuilder.newClient()) {
-//            logger.println("----- CRDA client ");
-//            WebTarget target = client.target("https://jsonplaceholder.typicode.com/todos/1");
-//            Invocation.Builder builder = target.request(MediaType.APPLICATION_JSON_TYPE);
-//            try (Response response = builder.get()) {
-//                logger.println("----- CRDA response ");
-//                logger.println(response.getStatus());
-//                logger.println(response.readEntity(String.class));
-//            }
-//        }
-        //   saveHtmlReport(dto.getHtml());
-
-//    	String jenkinsPath = env.get("PATH");
-//    	String crdaUuid = Utils.getCRDACredential(this.getCrdaKeyId());
-//        String cliVersion = this.getCliVersion();
-//        if (cliVersion == null) {
-//        	cliVersion = Config.DEFAULT_CLI_VERSION;
-//        	logger.println("No CRDA Cli version provided. Taking the default version " + cliVersion);
-//        }
-//        if (cliVersion.startsWith("v")) {
-//        	cliVersion = cliVersion.replace("v", "");
-//        	DefaultArtifactVersion cli = new DefaultArtifactVersion(cliVersion);
-//    		DefaultArtifactVersion cliDef = new DefaultArtifactVersion(Config.DEFAULT_CLI_VERSION);
-//
-//    		if (cli.compareTo(cliDef) <0 ) {
-//    			logger.println("Please consider upgrading the cli version to " + Config.DEFAULT_CLI_VERSION);
-//    		}
-//        }
-//
-//        String baseDir = Utils.doInstall(cliVersion, logger);
-//        if (baseDir.equals("Failed")) {
-//        	logger.println("Error during installation process");
-//        	return;
-//        }
-//
-//        String cmd = Config.CLI_CMD.replace("filepath", this.getFile());
-//        cmd = baseDir + cmd;
-//        logger.println("Contribution towards anonymous usage stats is set to " + this.getConsentTelemetry());
-//        logger.println("Analysis Begins");
-//        Map<String, String> envs = new HashMap<>();
-//        envs.put("PATH", jenkinsPath);
-//        envs.put("CRDA_KEY", crdaUuid);
-//        envs.put("CONSENT_TELEMETRY", String.valueOf(this.getConsentTelemetry()));
-//        String results = Utils.doExecute(cmd, logger, envs);
-//
-//        if (results.equals("") || results.equals("0") || ! Utils.isJSONValid(results)) {
-//        	logger.println("Analysis returned no results.");
-//        	return;
-//        }
-//        else {
-//
-//        	logger.println("....Analysis Summary....");
-//        	JSONObject res = new JSONObject(results);
-//	        Iterator<String> keys = res.keys();
-//	        String key;
-//	        while(keys.hasNext()) {
-//	            key = keys.next();
-//	            logger.println("\t" + key.replace("_", " ") + " : " + res.get(key));
-//	        }
-//
-//	        logger.println("Click on the CRDA Stack Report icon to view the detailed report");
-//	        logger.println("----- CRDA Analysis Ends -----");
-//	        run.addAction(new CRDAAction(crdaUuid, res));
-//        }
     }
 
     @Extension
@@ -260,8 +150,7 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
             load();
         }
 
-        public FormValidation doCheckFile(@QueryParameter String file)
-                throws IOException, ServletException {
+        public FormValidation doCheckFile(@QueryParameter String file) {
             if (file.length() == 0) {
                 return FormValidation.error(Messages.CRDABuilder_DescriptorImpl_errors_missingFileName());
             }
@@ -273,24 +162,6 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
             int len = crdaKeyId.length();
             if (len == 0) {
                 return FormValidation.error(Messages.CRDABuilder_DescriptorImpl_errors_missingUuid());
-            }
-            return FormValidation.ok();
-        }
-
-        public FormValidation doCheckCliVersion(@QueryParameter String cliVersion)
-                throws IOException, ServletException {
-            int len = cliVersion.length();
-            if (len == 0) {
-                return FormValidation.ok();
-            }
-            if (!Utils.urlExists(Config.CLI_URL.replace("version", cliVersion))) {
-                return FormValidation.error(Messages.CRDABuilder_DescriptorImpl_errors_incorrectCli());
-            }
-
-            DefaultArtifactVersion cli = new DefaultArtifactVersion(cliVersion.replace("v", ""));
-            DefaultArtifactVersion cliCompatible = new DefaultArtifactVersion("0.2.0");
-            if (cli.compareTo(cliCompatible) < 0) {
-                return FormValidation.error(Messages.CRDABuilder_DescriptorImpl_errors_oldCli());
             }
             return FormValidation.ok();
         }
@@ -325,19 +196,6 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
         }
     }
 
-//    private DepAnalysisDTO processResponse(Response response, TaskListener listener) throws JsonProcessingException {
-//        Map<String, String> params = response.getMediaType().getParameters();
-//        ObjectMapper mapper = new ObjectMapper();
-//        String body = response.readEntity(String.class);
-//        try {
-//            return new DepAnalysisDTO(mapper.readValue(body, AnalysisReport.class), body);
-//        } catch (JsonProcessingException e) {
-//            // TODO Auto-generated catch block
-//            e.printStackTrace();
-//            return null;
-//        }
-//    }
-
     private void processReport(AnalysisReport report, TaskListener listener) throws ExecutionException, InterruptedException {
         PrintStream logger = listener.getLogger();
         DependenciesSummary dependenciesSummary = report.getSummary().getDependencies();
@@ -356,20 +214,23 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
         logger.println("");
     }
 
-    private void saveHtmlReport(String html, TaskListener listener, FilePath workspace) throws IOException, InterruptedException {
+    private void saveHtmlReport(byte[] html, TaskListener listener, FilePath workspace) throws IOException, InterruptedException {
         PrintStream logger = listener.getLogger();
         logger.println("saveHtml");
         logger.println("Path: " + Paths.get(workspace.toURI()));
-//        try {
-           // Path temp = Files.createTempFile("dependency-analysis-report", ".html");
-       //     Path temp = Files.createFile(Paths.get(workspace.toURI())+"/dependency-analysis-report.html");
-           // Path reportPath = Files.createFile(Paths.get(workspace.toURI() + "/dependency-analysis-report.html"));
-            Path reportPath = Paths.get("/Users/olgalavtar/temp/dependency-analysis-report.html");
-            logger.println("reportPath: " + reportPath);
-            BufferedWriter writer = Files.newBufferedWriter(reportPath);
-            writer.append(html);
-            writer.close();
-            logger.println("You can find the detailed HTML report in: " + reportPath);
+        //    FileUtils.writeByteArrayToFile(new File("/Users/olgalavtar/temp/dependency-analysis-report.html"), html);
+            File file = new File(workspace + "/dependency-analysis-report.html");
+            FileUtils.writeByteArrayToFile(file, html);
+
+            // Create a FileWriter object to write to the file
+//            FileWriter writer = new FileWriter(file);
+//            writer.write(Base64.getEncoder().encodeToString(html));
+//            // Close the FileWriter object
+//            writer.close();
+        //            BufferedWriter writer = Files.newBufferedWriter(reportPath);
+//            writer.append(html);
+//            writer.close();
+            logger.println("You can find the detailed HTML report in: /Users/olgalavtar/temp/dependency-analysis-report.html");
 //        } catch (IOException e) {
 //            // TODO Auto-generated catch block
 //            e.printStackTrace();

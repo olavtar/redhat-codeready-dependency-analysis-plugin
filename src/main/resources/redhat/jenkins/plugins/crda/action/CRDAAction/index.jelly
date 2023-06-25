@@ -56,6 +56,7 @@
                 Analysis Symmary
             </h2>
             <h3>Dependency Details</h3>
+<!--			<div>${it.url}</div>-->
             <table>
             	<tr>
 						    <th>Keyword</th>
@@ -87,12 +88,16 @@
 						</table>
             <div id="vulnchart"></div>						
             <div name="input">
-                <input type="button" onclick="location.href=generateURL();" value="CRDA Report (Details)" />
+				<a href='./dependency-analysis-report.html'>CRDA Report (Details)</a>
+                <input type="button" onclick="generateURL()" value="CRDA Report (Details)" />
             </div>
             <script>
                 function generateURL(){
-                    var url = `${it.report.saUrl}`
-                    return url
+				//	window.open('file:///Users/olgalavtar/.jenkins/workspace/NewCRDA/dependency-analysis-report.html');
+					window.open('./dependency-analysis-report.html');
+
+					// var url = `file://${it.url}`
+                    // return url
                 }
             </script>
         </l:main-panel>

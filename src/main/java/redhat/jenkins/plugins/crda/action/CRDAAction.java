@@ -25,8 +25,11 @@ public class CRDAAction implements RunAction2 {
     private transient Run run;
     private String uuid;
     private AnalysisReport report;
-    private int scanned;
+    private String url;
 
+    public String getUrl() {
+        return url;
+    }
 
     @Override
     public void onAttached(Run<?, ?> run) {
@@ -42,9 +45,10 @@ public class CRDAAction implements RunAction2 {
         return run;
     }
 
-    public CRDAAction(String uuid, AnalysisReport report) {
+    public CRDAAction(String uuid, AnalysisReport report, String url) {
         this.uuid = uuid;
         this.report = report;
+        this.url = url;
 
     }
 

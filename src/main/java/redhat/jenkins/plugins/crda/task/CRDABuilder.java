@@ -26,7 +26,10 @@ import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
-import hudson.model.*;
+import hudson.model.AbstractProject;
+import hudson.model.Item;
+import hudson.model.Run;
+import hudson.model.TaskListener;
 import hudson.security.ACL;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
@@ -35,22 +38,21 @@ import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
 import jenkins.tasks.SimpleBuildStep;
 import org.apache.commons.io.FileUtils;
-import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import redhat.jenkins.plugins.crda.action.CRDAAction;
 import redhat.jenkins.plugins.crda.credentials.CRDAKey;
-import redhat.jenkins.plugins.crda.utils.Config;
 import redhat.jenkins.plugins.crda.utils.Utils;
 
 import javax.servlet.ServletException;
-import java.io.*;
-import java.nio.file.Files;
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.io.Serializable;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Base64;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -112,10 +114,20 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
         logger.println("----- CRDA Analysis Begins -----");
         String snykToken = Utils.getCRDACredential(this.getCrdaKeyId());
 
-//        logger.println("PATH: " + System.getenv("PATH"));
-//        logger.println("MVN: " + System.getenv("CRDA_MVN_PATH"));
-//        logger.println("SNYK: " + System.getenv("CRDA_SNYK_TOKEN"));
-//        logger.println("BACKEND: " + System.getenv("CRDA_BACKEND_URL"));
+        logger.println("Build Path" + run.getRootDir().getPath());
+
+        EnvVars envVars = run.getEnvironment(listener);
+        logger.println("MVN: " + envVars.get("CRDA_MVN_PATH"));
+//        logger.println("SNYK: " + envVars.get("CRDA_SNYK_TOKEN"));
+        logger.println("BACKEND: " + envVars.get("CRDA_BACKEND_URL"));
+        // setting system properties to pass to java-api
+        System.setProperty("CRDA_MVN_PATH", envVars.get("CRDA_MVN_PATH"));
+        System.setProperty("CRDA_SNYK_TOKEN", snykToken);
+        System.setProperty("CRDA_BACKEND_URL", envVars.get("CRDA_BACKEND_URL"));
+        System.setProperty("hudson.model.DirectoryBrowserSupport.CSP", "");
+
+        // to get build directory
+       // run.getRootDir().getPath();
 
         Path manifestPath = Paths.get(getFile());
         if (manifestPath.getParent() == null) {
@@ -131,10 +143,7 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
         CompletableFuture<AnalysisReport> analysisReport = crdaApi.stackAnalysisAsync(manifestPath.toString());
         try {
             processReport(analysisReport.get(), listener);
-           // saveHtmlReport(htmlReport.get(), listener, workspace);
-
-            File file = new File(workspace + "/dependency-analysis-report.html");
-            FileUtils.writeByteArrayToFile(file,htmlReport.get());
+            saveHtmlReport(htmlReport.get(), listener, workspace);
             logger.println("Click on the CRDA Stack Report icon to view the detailed report");
             logger.println("----- CRDA Analysis Ends -----");
             run.addAction(new CRDAAction(snykToken, analysisReport.get(), workspace + "/dependency-analysis-report.html"));
@@ -216,25 +225,9 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
 
     private void saveHtmlReport(byte[] html, TaskListener listener, FilePath workspace) throws IOException, InterruptedException {
         PrintStream logger = listener.getLogger();
-        logger.println("saveHtml");
-        logger.println("Path: " + Paths.get(workspace.toURI()));
-        //    FileUtils.writeByteArrayToFile(new File("/Users/olgalavtar/temp/dependency-analysis-report.html"), html);
-            File file = new File(workspace + "/dependency-analysis-report.html");
-            FileUtils.writeByteArrayToFile(file, html);
-
-            // Create a FileWriter object to write to the file
-//            FileWriter writer = new FileWriter(file);
-//            writer.write(Base64.getEncoder().encodeToString(html));
-//            // Close the FileWriter object
-//            writer.close();
-        //            BufferedWriter writer = Files.newBufferedWriter(reportPath);
-//            writer.append(html);
-//            writer.close();
-            logger.println("You can find the detailed HTML report in: /Users/olgalavtar/temp/dependency-analysis-report.html");
-//        } catch (IOException e) {
-//            // TODO Auto-generated catch block
-//            e.printStackTrace();
-//        }
+        File file = new File(workspace + "/dependency-analysis-report.html");
+        FileUtils.writeByteArrayToFile(file, html);
+        logger.println("You can find the detailed HTML report in your workspace.");
     }
 
 }

@@ -137,10 +137,10 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
         // instantiate the Crda API implementation
         var crdaApi = new CrdaApi();
         // get a byte array future holding a html report
-        CompletableFuture<byte[]> htmlReport = crdaApi.stackAnalysisHtmlAsync(manifestPath.toString());
+        CompletableFuture<byte[]> htmlReport = crdaApi.stackAnalysisHtml(manifestPath.toString());
 
         // get a AnalysisReport future holding a deserialized report
-        CompletableFuture<AnalysisReport> analysisReport = crdaApi.stackAnalysisAsync(manifestPath.toString());
+        CompletableFuture<AnalysisReport> analysisReport = crdaApi.stackAnalysis(manifestPath.toString());
         try {
             processReport(analysisReport.get(), listener);
             saveHtmlReport(htmlReport.get(), listener, workspace);

@@ -16,43 +16,31 @@
 
 package redhat.jenkins.plugins.crda.step;
 
-import java.io.IOException;
-import java.io.PrintStream;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
-
-import javax.servlet.ServletException;
-
-import org.jenkinsci.Symbol;
-import org.jenkinsci.plugins.workflow.steps.Step;
-import org.jenkinsci.plugins.workflow.steps.StepContext;
-import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
-import org.jenkinsci.plugins.workflow.steps.StepExecution;
-import org.jenkinsci.plugins.workflow.steps.SynchronousNonBlockingStepExecution;
-import org.json.JSONObject;
-import org.kohsuke.stapler.AncestorInPath;
-import org.kohsuke.stapler.DataBoundConstructor;
-import org.kohsuke.stapler.DataBoundSetter;
-import org.kohsuke.stapler.QueryParameter;
-
-import hudson.Extension;
 import hudson.EnvVars;
+import hudson.Extension;
 import hudson.FilePath;
 import hudson.model.Item;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
-import redhat.jenkins.plugins.crda.action.CRDAAction;
+import org.jenkinsci.Symbol;
+import org.jenkinsci.plugins.workflow.steps.*;
+import org.kohsuke.stapler.AncestorInPath;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
+import org.kohsuke.stapler.QueryParameter;
 import redhat.jenkins.plugins.crda.task.CRDABuilder.BuilderDescriptorImpl;
 import redhat.jenkins.plugins.crda.utils.Config;
 import redhat.jenkins.plugins.crda.utils.Utils;
-import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
+
+import javax.servlet.ServletException;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 public final class CRDAStep extends Step {
     private String file;
@@ -212,11 +200,11 @@ public final class CRDAStep extends Step {
 //	            logger.println("\t" + key.replace("_", " ") + " : " + res.get(key));
 //	        }
 //
-//	        logger.println("Click on the CRDA Stack Report icon to view the detailed report");
+	        logger.println("Click on the CRDA Stack Report icon to view the detailed report");
 //
 //            Run run = getContext().get(Run.class);
 //            run.addAction(new CRDAAction(crdaUuid, res));
-//            logger.println("----- CRDA Analysis Ends -----");
+            logger.println("----- CRDA Analysis Ends -----");
 //            return res.getInt("total_vulnerabilities") == 0 ? Config.EXIT_SUCCESS : Config.EXIT_VULNERABLE;
            return Config.EXIT_SUCCESS;
         }     
@@ -249,11 +237,6 @@ public final class CRDAStep extends Step {
         public FormValidation doCheckFile(@QueryParameter String file) throws IOException, ServletException {
           return builderDescriptor.doCheckFile(file);
         }
-        
-        @SuppressWarnings("unused")
-//        public FormValidation doCheckCliVersion(@QueryParameter String cliVersion) throws IOException, ServletException {
-//          return builderDescriptor.doCheckCliVersion(cliVersion);
-//        }
     	
     	@Override
         public String getFunctionName() {

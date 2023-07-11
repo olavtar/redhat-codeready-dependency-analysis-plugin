@@ -61,14 +61,12 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
 
     private String file;
     private String crdaKeyId;
-    private String cliVersion;
     private boolean consentTelemetry = false;
 
     @DataBoundConstructor
-    public CRDABuilder(String file, String crdaKeyId, String cliVersion, boolean consentTelemetry) {
+    public CRDABuilder(String file, String crdaKeyId, boolean consentTelemetry) {
         this.file = file;
         this.crdaKeyId = crdaKeyId;
-        this.cliVersion = cliVersion;
         this.consentTelemetry = consentTelemetry;
     }
 
@@ -79,15 +77,6 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
     @DataBoundSetter
     public void setFile(String file) {
         this.file = file;
-    }
-
-    public String getCliVersion() {
-        return cliVersion;
-    }
-
-    @DataBoundSetter
-    public void setCliVersion(String cliVersion) {
-        this.cliVersion = cliVersion;
     }
 
     public String getCrdaKeyId() {

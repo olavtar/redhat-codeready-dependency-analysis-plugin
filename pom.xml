@@ -9,7 +9,7 @@
     </parent>
 
     <groupId>redhat.jenkins.plugins</groupId>
-    <artifactId>redhat-codeready-dependency-analysis-test</artifactId>
+    <artifactId>redhat-codeready-dependency-analysis</artifactId>
     <version>0.1.4-SNAPSHOT</version>
     <packaging>hpi</packaging>
     <properties>
@@ -20,7 +20,7 @@
         <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
         <jenkins.version>2.387.3</jenkins.version>
     </properties>
-    <name>Test Red Hat Codeready Dependency Analysis Plugin</name>
+    <name>Red Hat Codeready Dependency Analysis Plugin</name>
     <url>https://github.com/jenkinsci/redhat-codeready-dependency-analysis-plugin/blob/master/README.md</url>
     <description>Add the ability to scan your dependencies and get an insight on the vulnerabilities, compliance, maintainability, popularity and more.</description>
 
@@ -60,36 +60,38 @@
         </dependency>
         <dependency>
             <groupId>org.hamcrest</groupId>
-            <artifactId>hamcrest-core</artifactId>
+            <artifactId>hamcrest</artifactId>
             <version>2.2</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.powermock</groupId>
             <artifactId>powermock-api-mockito2</artifactId>
-            <version>1.7.0RC2</version>
+            <version>2.0.9</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.powermock</groupId>
             <artifactId>powermock-module-junit4</artifactId>
-            <version>1.7.0</version>
+            <version>2.0.9</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.powermock</groupId>
             <artifactId>powermock-core</artifactId>
-            <version>1.7.0</version>
+            <version>2.0.9</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.powermock</groupId>
             <artifactId>powermock-module-junit4-rule</artifactId>
-            <version>1.7.0</version>
+            <version>2.0.9</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>2.9.0</version>
+            <version>2.18.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -243,6 +245,10 @@
         <pluginRepository>
             <id>repo.jenkins-ci.org</id>
             <url>https://repo.jenkins-ci.org/public/</url>
+        </pluginRepository>
+        <pluginRepository>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/RHEcosystemAppEng/crda-java-api</url>
         </pluginRepository>
     </pluginRepositories>
 </project>

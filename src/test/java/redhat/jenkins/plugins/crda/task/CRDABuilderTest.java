@@ -53,10 +53,7 @@ public class CRDABuilderTest {
         else{
             System.setProperty("CRDA_BACKEND_URL", "http://crda-backend-dev-crda.apps.sssc-cl01.appeng.rhecoeng.com");
         }
-        Path manifestPath = Paths.get(crdb.getFile());
-        if (manifestPath.getParent() == null) {
-            manifestPath = Paths.get(project.getSomeWorkspace().child(crdb.getFile()).toURI());
-        }
+        Path manifestPath = Paths.get("/tmp/pom.xml");
         FreeStyleBuild build = jenkins.buildAndAssertSuccess(project);
         jenkins.assertLogContains("----- CRDA Analysis Begins -----", build);
         jenkins.assertLogContains("Click on the CRDA Stack Report icon to view the detailed report", build);

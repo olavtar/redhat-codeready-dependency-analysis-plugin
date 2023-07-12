@@ -102,17 +102,22 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
         PrintStream logger = listener.getLogger();
         logger.println("----- CRDA Analysis Begins -----");
         String snykToken = Utils.getCRDACredential(this.getCrdaKeyId());
-
         logger.println("Build Path" + run.getRootDir().getPath());
 
-        EnvVars envVars = run.getEnvironment(listener);
-        logger.println("MVN: " + envVars.get("CRDA_MVN_PATH"));
-//        logger.println("SNYK: " + envVars.get("CRDA_SNYK_TOKEN"));
-        logger.println("BACKEND: " + envVars.get("CRDA_BACKEND_URL"));
-        // setting system properties to pass to java-api
-        System.setProperty("CRDA_MVN_PATH", envVars.get("CRDA_MVN_PATH"));
+        EnvVars envVars = getEnvVars(run, listener);
+        if(envVars != null){
+            // setting system properties to pass to java-api
+            if(envVars.get("CRDA_MVN_PATH") != null ){
+                System.setProperty("CRDA_MVN_PATH", envVars.get("CRDA_MVN_PATH"));
+                logger.println("MVN: " + envVars.get("CRDA_MVN_PATH"));
+            }
+            if(envVars.get("CRDA_BACKEND_URL") != null ){
+                System.setProperty("CRDA_BACKEND_URL", envVars.get("CRDA_BACKEND_URL"));
+                logger.println("BACKEND: " + envVars.get("CRDA_BACKEND_URL"));
+            }
+        }
+
         System.setProperty("CRDA_SNYK_TOKEN", snykToken);
-        System.setProperty("CRDA_BACKEND_URL", envVars.get("CRDA_BACKEND_URL"));
         System.setProperty("hudson.model.DirectoryBrowserSupport.CSP", "");
 
         // to get build directory
@@ -138,6 +143,18 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
             run.addAction(new CRDAAction(snykToken, analysisReport.get(), workspace + "/dependency-analysis-report.html"));
         } catch (ExecutionException e) {
             e.printStackTrace();
+        }
+    }
+
+    private EnvVars getEnvVars(Run<?,?> run, TaskListener listener) {
+        if (run == null || listener == null) {
+            return null;
+        }
+
+        try {
+            return run.getEnvironment(listener);
+        } catch (IOException | InterruptedException e) {
+            return null;
         }
     }
 

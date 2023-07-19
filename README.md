@@ -51,6 +51,15 @@ The plugin can be used in jenkins as a pipeline task or as a build step.
 
 ### 4. Configuration
 Make sure that the Path is updated to point to the corresponding executables, like mvn, pip etc.
+<h5>Customization</h5>
+<p>
+There is a way to set a custom Maven path using <em>Environment Variables</em>. 
+- Click on Manage Jenkins -> System. Scroll down to Global properties/Environment Variables.
+- Set Name: CRDA_MVN_PATH and Value: /path/to/custom/mvn
+
+```java
+System.setProperty("CRDA_SNYK_TOKEN", "my-private-snyk-token");
+System.setProperty("CRDA_MVN_PATH", "/path/to/custom/mvn");
 #### Option I- As a build step
 - Click on Configure -> Build Trigger -> Add Build Step. Select `Invoke Red Hat Codeready Dependency Analysis (CRDA)`.
 - Filepath (Mandatory): Provide the filepath for the manifest file. We currently support the following

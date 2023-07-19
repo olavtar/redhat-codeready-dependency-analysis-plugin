@@ -178,8 +178,8 @@
             <version>3.0.2.Final</version>
         </dependency>
         <dependency>
-            <groupId>com.redhat.crda</groupId>
-            <artifactId>crda-java-api</artifactId>
+            <groupId>com.redhat.exhort</groupId>
+            <artifactId>exhort-java-api</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
     </dependencies>
@@ -238,7 +238,7 @@
         </repository>
         <repository>
           <id>github</id>
-          <url>https://maven.pkg.github.com/RHEcosystemAppEng/crda-java-api</url>
+          <url>https://maven.pkg.github.com/RHEcosystemAppEng/exhort-java-api</url>
         </repository>
     </repositories>
     <pluginRepositories>
@@ -248,7 +248,7 @@
         </pluginRepository>
         <pluginRepository>
             <id>github</id>
-            <url>https://maven.pkg.github.com/RHEcosystemAppEng/crda-java-api</url>
+            <url>https://maven.pkg.github.com/RHEcosystemAppEng/exhort-java-api</url>
         </pluginRepository>
     </pluginRepositories>
 </project>

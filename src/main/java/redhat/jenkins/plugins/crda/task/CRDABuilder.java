@@ -18,10 +18,10 @@ package redhat.jenkins.plugins.crda.task;
 
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
-import com.redhat.crda.backend.AnalysisReport;
-import com.redhat.crda.backend.DependenciesSummary;
-import com.redhat.crda.backend.VulnerabilitiesSummary;
-import com.redhat.crda.impl.CrdaApi;
+import com.redhat.exhort.AnalysisReport;
+import com.redhat.exhort.DependenciesSummary;
+import com.redhat.exhort.VulnerabilitiesSummary;
+import com.redhat.exhort.impl.CrdaApi;
 import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
@@ -106,14 +106,14 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
         EnvVars envVars = getEnvVars(run, listener);
         if(envVars != null){
             // setting system properties to pass to java-api
-            if(envVars.get("CRDA_MVN_PATH") != null ){
-                System.setProperty("CRDA_MVN_PATH", envVars.get("CRDA_MVN_PATH"));
+            if(envVars.get("EXHORT_MVN_PATH") != null ){
+                System.setProperty("EXHORT_MVN_PATH", envVars.get("CRDA_MVN_PATH"));
             }
-            if(envVars.get("CRDA_BACKEND_URL") != null ){
-                System.setProperty("CRDA_BACKEND_URL", envVars.get("CRDA_BACKEND_URL"));
+            if(envVars.get("EXHORT_BACKEND_URL") != null ){
+                System.setProperty("EXHORT_BACKEND_URL", envVars.get("CRDA_BACKEND_URL"));
             }
         }
-        System.setProperty("CRDA_SNYK_TOKEN", snykToken);
+        System.setProperty("EXHORT_SNYK_TOKEN", snykToken);
         System.setProperty("hudson.model.DirectoryBrowserSupport.CSP", "");
 
         Path manifestPath = Paths.get(getFile());
@@ -122,12 +122,12 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
         }
 
         // instantiate the Crda API implementation
-        var crdaApi = new CrdaApi();
+        var exhortApi = new ExhortApi();
         // get a byte array future holding a html report
-        CompletableFuture<byte[]> htmlReport = crdaApi.stackAnalysisHtml(manifestPath.toString());
+        CompletableFuture<byte[]> htmlReport = exhortApi.stackAnalysisHtml(manifestPath.toString());
 
         // get a AnalysisReport future holding a deserialized report
-        CompletableFuture<AnalysisReport> analysisReport = crdaApi.stackAnalysis(manifestPath.toString());
+        CompletableFuture<AnalysisReport> analysisReport = exhortApi.stackAnalysis(manifestPath.toString());
         try {
             processReport(analysisReport.get(), listener);
             saveHtmlReport(htmlReport.get(), listener, workspace);

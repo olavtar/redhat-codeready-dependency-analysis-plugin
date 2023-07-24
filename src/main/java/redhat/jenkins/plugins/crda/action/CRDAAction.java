@@ -16,7 +16,7 @@
 
 package redhat.jenkins.plugins.crda.action;
 
-import com.redhat.crda.backend.AnalysisReport;
+import com.redhat.exhort.api.AnalysisReport;
 import hudson.model.Run;
 import jenkins.model.RunAction2;
 

@@ -16,10 +16,11 @@
 
 package redhat.jenkins.plugins.crda.step;
 
-import com.redhat.crda.backend.AnalysisReport;
-import com.redhat.crda.backend.DependenciesSummary;
-import com.redhat.crda.backend.VulnerabilitiesSummary;
-import com.redhat.crda.impl.CrdaApi;
+import com.redhat.exhort.Api;
+import com.redhat.exhort.api.AnalysisReport;
+import com.redhat.exhort.api.DependenciesSummary;
+import com.redhat.exhort.api.VulnerabilitiesSummary;
+import com.redhat.exhort.impl.ExhortApi;
 import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
@@ -152,7 +153,6 @@ public final class CRDAStep extends Step {
                 return Config.EXIT_FAILED;
             }
 
-
             if(crdaUuid.equals("")) {
                 logger.println("CRDA Key id '" + step.crdaKeyId + "' was not found in the credentials. Please configure the build properly and retry.");
                 return Config.EXIT_FAILED;
@@ -170,20 +170,17 @@ public final class CRDAStep extends Step {
             }
 
             // instantiate the Crda API implementation
-            var crdaApi = new CrdaApi();
-            // get a byte array future holding a html report
-            CompletableFuture<byte[]> htmlReport = crdaApi.stackAnalysisHtml(manifestPath.toString());
+            var exhortApi = new ExhortApi();
+            CompletableFuture<Api.MixedReport> mixedStackReport = exhortApi.stackAnalysisMixed(manifestPath.toString());
 
-            // get a AnalysisReport future holding a deserialized report
-            CompletableFuture<AnalysisReport> analysisReport = crdaApi.stackAnalysis(manifestPath.toString());
             try {
 
-                processReport(analysisReport.get(), listener);
-                saveHtmlReport(htmlReport.get(), listener, workspace);
+                processReport(mixedStackReport.get().json, listener);
+                saveHtmlReport(mixedStackReport.get().html, listener, workspace);
                 logger.println("Click on the CRDA Stack Report icon to view the detailed report");
                 logger.println("----- CRDA Analysis Ends -----");
-                run.addAction(new CRDAAction(crdaUuid, analysisReport.get(), workspace + "/dependency-analysis-report.html"));
-                return analysisReport.get().getSummary().getVulnerabilities().getTotal().compareTo(BigDecimal.ZERO) == 0 ? Config.EXIT_SUCCESS : Config.EXIT_VULNERABLE;
+                run.addAction(new CRDAAction(crdaUuid, mixedStackReport.get().json, workspace + "/dependency-analysis-report.html"));
+                return mixedStackReport.get().json.getSummary().getVulnerabilities().getTotal().compareTo(BigDecimal.ZERO) == 0 ? Config.EXIT_SUCCESS : Config.EXIT_VULNERABLE;
             } catch (InterruptedException e) {
                 e.printStackTrace();
             } catch (ExecutionException e) {

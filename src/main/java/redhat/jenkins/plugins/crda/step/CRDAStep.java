@@ -128,9 +128,6 @@ public final class CRDAStep extends Step {
                 if(envVars.get("CRDA_MVN_PATH") != null ){
                     System.setProperty("CRDA_MVN_PATH", envVars.get("CRDA_MVN_PATH"));
                 }
-                if(envVars.get("CRDA_BACKEND_URL") != null ){
-                    System.setProperty("CRDA_BACKEND_URL", envVars.get("CRDA_BACKEND_URL"));
-                }
 
             } catch (IOException | InterruptedException e) {
 				e.printStackTrace();

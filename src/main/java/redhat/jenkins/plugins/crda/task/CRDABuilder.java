@@ -102,7 +102,7 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
     public void perform(Run<?, ?> run, FilePath workspace, EnvVars env, Launcher launcher, TaskListener listener) throws IOException, InterruptedException {
         PrintStream logger = listener.getLogger();
         logger.println("----- CRDA Analysis Begins -----");
-        String snykToken = Utils.getCRDACredential(this.getCrdaKeyId());
+        String crdaUuid = Utils.getCRDACredential(this.getCrdaKeyId());
 
         EnvVars envVars = getEnvVars(run, listener);
         if(envVars != null){
@@ -113,8 +113,11 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
             if(envVars.get("EXHORT_URL") != null ){
                 System.setProperty("EXHORT_URL", envVars.get("EXHORT_URL"));
             }
+            if(envVars.get("EXHORT_SNYK_TOKEN") != null ){
+                System.setProperty("EXHORT_SNYK_TOKEN", envVars.get("EXHORT_SNYK_TOKEN"));
+            }
         }
-        System.setProperty("EXHORT_SNYK_TOKEN", snykToken);
+//        System.setProperty("EXHORT_SNYK_TOKEN", snykToken);
         System.setProperty("hudson.model.DirectoryBrowserSupport.CSP", "");
 
         Path manifestPath = Paths.get(getFile());
@@ -135,7 +138,7 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
             saveHtmlReport(mixedStackReport.get().html, listener, workspace);
             logger.println("Click on the CRDA Stack Report icon to view the detailed report");
             logger.println("----- CRDA Analysis Ends -----");
-            run.addAction(new CRDAAction(snykToken, mixedStackReport.get().json, workspace + "/dependency-analysis-report.html"));
+            run.addAction(new CRDAAction(crdaUuid, mixedStackReport.get().json, workspace + "/dependency-analysis-report.html"));
         } catch (ExecutionException e) {
             logger.println("error");
             e.printStackTrace(logger);

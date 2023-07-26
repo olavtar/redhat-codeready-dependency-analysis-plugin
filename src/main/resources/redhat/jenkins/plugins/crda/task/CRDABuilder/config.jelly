@@ -24,7 +24,7 @@
       </div>
     </f:entry>
 
-    <f:entry title="${%Snyk token}" field="crdaKeyId">
+    <f:entry title="${%Key Id}" field="crdaKeyId">
       <c:select/>
     </f:entry>
     

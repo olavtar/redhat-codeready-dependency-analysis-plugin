@@ -49,7 +49,7 @@ public class DefaultCRDAKey extends BaseStandardCredentials implements CRDAKey{
 	  @Nonnull
 	  @Override
 	  public String getDisplayName() {
-	    return "CRDA Key";
+	    return "RHDA Key";
 	  }
 	}
 

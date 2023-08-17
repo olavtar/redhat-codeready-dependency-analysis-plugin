@@ -47,7 +47,7 @@
 			  }
 			}
 		</script>
-    <l:layout title="CRDA Stack Report">
+    <l:layout title="RHDA Stack Report">
         <l:side-panel>
             <st:include page="sidepanel.jelly" it="${it.run}" optional="true" />
         </l:side-panel>
@@ -87,7 +87,7 @@
 						</table>
             <div id="vulnchart"></div>						
             <div name="input">
-                <input type="button" onclick="window.open(generateURL(),'_blank');" value="CRDA Report (Details)" />
+                <input type="button" onclick="window.open(generateURL(),'_blank');" value="RHDA Report (Details)" />
             </div>
             <script>
                 function generateURL(){

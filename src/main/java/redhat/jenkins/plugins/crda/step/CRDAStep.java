@@ -16,7 +16,6 @@
 
 package redhat.jenkins.plugins.crda.step;
 
-import com.redhat.exhort.Api;
 import com.redhat.exhort.api.AnalysisReport;
 import com.redhat.exhort.api.DependenciesSummary;
 import com.redhat.exhort.api.VulnerabilitiesSummary;
@@ -45,7 +44,6 @@ import javax.servlet.ServletException;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -146,16 +144,16 @@ public final class CRDAStep extends Step {
 
             crdaUuid = Utils.getCRDACredential(step.crdaKeyId);
             if (crdaUuid == null) {
-                logger.println("CRDA Key id '" + step.crdaKeyId + "' was not found in the credentials. Please configure the build properly and retry.");
+                logger.println("RHDA Key id '" + step.crdaKeyId + "' was not found in the credentials. Please configure the build properly and retry.");
                 return Config.EXIT_FAILED;
             }
 
             if(crdaUuid.equals("")) {
-                logger.println("CRDA Key id '" + step.crdaKeyId + "' was not found in the credentials. Please configure the build properly and retry.");
+                logger.println("RHDA Key id '" + step.crdaKeyId + "' was not found in the credentials. Please configure the build properly and retry.");
                 return Config.EXIT_FAILED;
             }
 
-            System.setProperty("CRDA_SNYK_TOKEN", crdaUuid);
+            System.setProperty("EXHORT_SNYK_TOKEN", crdaUuid);
             System.setProperty("hudson.model.DirectoryBrowserSupport.CSP", "");
 
             // to get build directory
@@ -168,16 +166,26 @@ public final class CRDAStep extends Step {
 
             // instantiate the Crda API implementation
             var exhortApi = new ExhortApi();
-            CompletableFuture<Api.MixedReport> mixedStackReport = exhortApi.stackAnalysisMixed(manifestPath.toString());
+            // TODO: Enable for the SP.
+//            CompletableFuture<Api.MixedReport> mixedStackReport = exhortApi.stackAnalysisMixed(manifestPath.toString());
 
+            // get a byte array future holding a html report
+            CompletableFuture<byte[]> htmlReport = exhortApi.stackAnalysisHtml(manifestPath.toString());
+
+            // get a AnalysisReport future holding a deserialized report
+            CompletableFuture<AnalysisReport> analysisReport = exhortApi.stackAnalysis(manifestPath.toString());
+//
             try {
 
-                processReport(mixedStackReport.get().json, listener);
-                saveHtmlReport(mixedStackReport.get().html, listener, workspace);
-                logger.println("Click on the CRDA Stack Report icon to view the detailed report");
-                logger.println("----- CRDA Analysis Ends -----");
-                run.addAction(new CRDAAction(crdaUuid, mixedStackReport.get().json, workspace + "/dependency-analysis-report.html"));
-                return mixedStackReport.get().json.getSummary().getVulnerabilities().getTotal().compareTo(BigDecimal.ZERO) == 0 ? Config.EXIT_SUCCESS : Config.EXIT_VULNERABLE;
+                processReport(analysisReport.get(), listener);
+                saveHtmlReport(htmlReport.get(), listener, workspace);
+                logger.println("Click on the RHDA Stack Report icon to view the detailed report");
+                logger.println("----- RHDA Analysis Ends -----");
+                run.addAction(new CRDAAction(crdaUuid, analysisReport.get(), workspace + "/dependency-analysis-report.html"));
+                return (analysisReport.get().getSummary().getVulnerabilities().getTotal()).intValue() == 0 ? Config.EXIT_SUCCESS : Config.EXIT_VULNERABLE;
+//              // TODO: Enable for the SP.
+//                run.addAction(new CRDAAction(crdaUuid, mixedStackReport.get().json, workspace + "/dependency-analysis-report.html"));
+//                return mixedStackReport.get().json.getSummary().getVulnerabilities().getTotal().compareTo(BigDecimal.ZERO) == 0 ? Config.EXIT_SUCCESS : Config.EXIT_VULNERABLE;
             } catch (InterruptedException e) {
                 e.printStackTrace();
             } catch (ExecutionException e) {

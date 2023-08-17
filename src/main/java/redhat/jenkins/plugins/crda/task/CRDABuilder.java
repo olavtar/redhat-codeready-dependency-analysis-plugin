@@ -18,7 +18,6 @@ package redhat.jenkins.plugins.crda.task;
 
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
-import com.redhat.exhort.Api;
 import com.redhat.exhort.api.AnalysisReport;
 import com.redhat.exhort.api.DependenciesSummary;
 import com.redhat.exhort.api.VulnerabilitiesSummary;
@@ -101,7 +100,7 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
     @Override
     public void perform(Run<?, ?> run, FilePath workspace, EnvVars env, Launcher launcher, TaskListener listener) throws IOException, InterruptedException {
         PrintStream logger = listener.getLogger();
-        logger.println("----- CRDA Analysis Begins -----");
+        logger.println("----- RHDA Analysis Begins -----");
         String crdaUuid = Utils.getCRDACredential(this.getCrdaKeyId());
 
         EnvVars envVars = getEnvVars(run, listener);
@@ -131,14 +130,24 @@ public class CRDABuilder extends Builder implements SimpleBuildStep, Serializabl
         // get a AnalysisReport future holding a mixed report object aggregating:
         // - (json) deserialized Stack Analysis report
         // - (html) html Stack Analysis report
-        CompletableFuture<Api.MixedReport> mixedStackReport = exhortApi.stackAnalysisMixed(manifestPath.toString());
+        // TODO: Enable for the SP.
+//        CompletableFuture<Api.MixedReport> mixedStackReport = exhortApi.stackAnalysisMixed(manifestPath.toString());
 
+        // get a byte array future holding a html report
+        CompletableFuture<byte[]> htmlReport = exhortApi.stackAnalysisHtml(manifestPath.toString());
+
+        // get a AnalysisReport future holding a deserialized report
+        CompletableFuture<AnalysisReport> analysisReport = exhortApi.stackAnalysis(manifestPath.toString());
         try {
-            processReport(mixedStackReport.get().json, listener);
-            saveHtmlReport(mixedStackReport.get().html, listener, workspace);
-            logger.println("Click on the CRDA Stack Report icon to view the detailed report");
-            logger.println("----- CRDA Analysis Ends -----");
-            run.addAction(new CRDAAction(crdaUuid, mixedStackReport.get().json, workspace + "/dependency-analysis-report.html"));
+            processReport(analysisReport.get(), listener);
+            saveHtmlReport(htmlReport.get(), listener, workspace);
+            // TODO: Enable for the SP.
+//            processReport(mixedStackReport.get().json, listener);
+//            saveHtmlReport(mixedStackReport.get().html, listener, workspace);
+            logger.println("Click on the RHDA Stack Report icon to view the detailed report");
+            logger.println("----- RHDA Analysis Ends -----");
+            // Change analysisReport.get() to mixedStackReport.get().json for SP
+            run.addAction(new CRDAAction(crdaUuid, analysisReport.get(), workspace + "/dependency-analysis-report.html"));
         } catch (ExecutionException e) {
             logger.println("error");
             e.printStackTrace(logger);

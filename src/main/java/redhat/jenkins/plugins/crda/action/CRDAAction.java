@@ -67,7 +67,7 @@ public class CRDAAction implements RunAction2 {
 
     @Override
     public String getDisplayName() {
-        return "CRDA Stack Report";
+        return "RHDA Stack Report";
     }
 
     @Override
